@@ -1,0 +1,182 @@
+{
+  "Items": [
+    {
+      "Metadata": {
+        "name": "app-node-1-7c45676d65-jgpsk",
+        "labels": {
+          "app": "app",
+          "instance": "node-1",
+          "intents.otterize.com/server": "app-node-1-skudasov-crib-c7754c",
+          "pod-template-hash": "7c45676d65",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-1-db-59d5f6f996-4pf2g",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-1-db",
+          "intents.otterize.com/server": "app-node-1-db-skudasov-crib-47af73",
+          "pod-template-hash": "59d5f6f996",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-2-bfdb899b5-6wc7b",
+        "labels": {
+          "app": "app",
+          "instance": "node-2",
+          "intents.otterize.com/server": "app-node-2-skudasov-crib-9cd23d",
+          "pod-template-hash": "bfdb899b5",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-2-db-84dd76cf64-6qjj4",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-2-db",
+          "intents.otterize.com/server": "app-node-2-db-skudasov-crib-2c0e55",
+          "pod-template-hash": "84dd76cf64",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-3-64488f5db5-772cq",
+        "labels": {
+          "app": "app",
+          "instance": "node-3",
+          "intents.otterize.com/server": "app-node-3-skudasov-crib-36e5e9",
+          "pod-template-hash": "64488f5db5",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-3-db-67596568-78czd",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-3-db",
+          "intents.otterize.com/server": "app-node-3-db-skudasov-crib-045b9b",
+          "pod-template-hash": "67596568",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-4-7c785888f-m5pzv",
+        "labels": {
+          "app": "app",
+          "instance": "node-4",
+          "intents.otterize.com/server": "app-node-4-skudasov-crib-0e4bbc",
+          "pod-template-hash": "7c785888f",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-4-db-c76556b56-btt68",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-4-db",
+          "intents.otterize.com/server": "app-node-4-db-skudasov-crib-dfcbf8",
+          "pod-template-hash": "c76556b56",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-5-db-6956584c48-fl7sj",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-5-db",
+          "intents.otterize.com/server": "app-node-5-db-skudasov-crib-a1dc44",
+          "pod-template-hash": "6956584c48",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-5-fb464dfd5-4nqzz",
+        "labels": {
+          "app": "app",
+          "instance": "node-5",
+          "intents.otterize.com/server": "app-node-5-skudasov-crib-7d9d72",
+          "pod-template-hash": "fb464dfd5",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-6-5bc7b5ccf7-6c426",
+        "labels": {
+          "app": "app",
+          "instance": "node-6",
+          "intents.otterize.com/server": "app-node-6-skudasov-crib-384c07",
+          "pod-template-hash": "5bc7b5ccf7",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "app-node-6-db-7cbfddf564-z4dzp",
+        "labels": {
+          "app": "app-db",
+          "instance": "node-6-db",
+          "intents.otterize.com/server": "app-node-6-db-skudasov-crib-a03e2f",
+          "pod-template-hash": "7cbfddf564",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "geth-55b64cdf59-lhltz",
+        "labels": {
+          "app": "geth",
+          "intents.otterize.com/server": "geth-skudasov-crib-ada606",
+          "pod-template-hash": "55b64cdf59",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "mockserver-7cb865999c-b7mgp",
+        "labels": {
+          "app": "mockserver",
+          "intents.otterize.com/server": "mockserver-skudasov-crib-4a3261",
+          "pod-template-hash": "7cb865999c",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "Metadata": {
+        "name": "runner-64c589dd4b-qpfx7",
+        "labels": {
+          "app": "runner",
+          "instance": "runner-1",
+          "intents.otterize.com/server": "runner-skudasov-crib-424762",
+          "pod-template-hash": "64c589dd4b",
+          "release": "app"
+        }
+      }
+    }
+  ]
+}

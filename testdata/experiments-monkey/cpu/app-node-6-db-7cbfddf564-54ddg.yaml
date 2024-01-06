@@ -1,0 +1,18 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-app-node-6-db-7cbfddf564-54ddg
+  namespace: skudasov-crib
+  labels:
+    waitLabel: app-node-6-db-7cbfddf564-54ddg
+spec:
+  mode: one
+  duration: 10s
+  selector:
+    labelSelectors:
+      'pod-template-hash': '7cbfddf564'
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

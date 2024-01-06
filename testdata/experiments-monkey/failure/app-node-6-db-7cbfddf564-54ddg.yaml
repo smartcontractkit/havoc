@@ -1,0 +1,15 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: failure-app-node-6-db-7cbfddf564-54ddg
+  namespace: skudasov-crib
+  labels:
+    waitLabel: app-node-6-db-7cbfddf564-54ddg
+spec:
+  action: pod-failure
+  mode: one
+  duration: 10s
+  selector:
+    labelSelectors:
+      'pod-template-hash': '7cbfddf564'

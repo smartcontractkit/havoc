@@ -1,0 +1,28 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: group-latency-release-app
+  namespace: my-test-namespace
+  labels:
+    waitLabel: release-app
+spec:
+  selector:
+    namespaces:
+      - my-test-namespace
+    labelSelectors:
+      'release': 'app'
+  mode: fixed-percent
+  value: '30'
+  action: delay
+  duration: 1m
+  delay:
+    latency: 500ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - my-test-namespace
+      labelSelectors:
+        'release': 'app'
+    mode: all

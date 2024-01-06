@@ -1,0 +1,15 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: failure-runner-64c589dd4b-2ksmc
+  namespace: skudasov-crib
+  labels:
+    waitLabel: runner-64c589dd4b-2ksmc
+spec:
+  action: pod-failure
+  mode: one
+  duration: 10s
+  selector:
+    labelSelectors:
+      'pod-template-hash': '64c589dd4b'

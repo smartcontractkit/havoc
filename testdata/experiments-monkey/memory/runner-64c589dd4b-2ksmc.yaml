@@ -1,0 +1,18 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-runner-64c589dd4b-2ksmc
+  namespace: skudasov-crib
+  labels:
+    waitLabel: runner-64c589dd4b-2ksmc
+spec:
+  mode: one
+  duration: 10s
+  selector:
+    labelSelectors:
+      'pod-template-hash': '64c589dd4b'
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: group-failure-release-app
+  namespace: my-test-namespace
+  labels:
+    waitLabel: release-app
+spec:
+  action: pod-failure
+  mode: fixed-percent
+  value: '30'
+  duration: 1m
+  selector:
+    labelSelectors:
+      'release': 'app'

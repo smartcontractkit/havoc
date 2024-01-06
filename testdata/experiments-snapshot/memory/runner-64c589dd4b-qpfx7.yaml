@@ -1,0 +1,18 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-runner-64c589dd4b-qpfx7
+  namespace: my-test-namespace
+  labels:
+    waitLabel: runner-64c589dd4b-qpfx7
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: runner-64c589dd4b-qpfx7
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

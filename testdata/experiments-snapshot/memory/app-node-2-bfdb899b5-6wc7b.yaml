@@ -1,0 +1,18 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-app-node-2-bfdb899b5-6wc7b
+  namespace: my-test-namespace
+  labels:
+    waitLabel: app-node-2-bfdb899b5-6wc7b
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: app-node-2-bfdb899b5-6wc7b
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

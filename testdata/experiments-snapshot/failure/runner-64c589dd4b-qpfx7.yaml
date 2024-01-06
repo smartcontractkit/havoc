@@ -1,0 +1,15 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: failure-runner-64c589dd4b-qpfx7
+  namespace: my-test-namespace
+  labels:
+    waitLabel: runner-64c589dd4b-qpfx7
+spec:
+  action: pod-failure
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: runner-64c589dd4b-qpfx7

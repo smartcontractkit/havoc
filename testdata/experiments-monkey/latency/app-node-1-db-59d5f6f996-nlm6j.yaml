@@ -1,0 +1,29 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: latency-app-node-1-db-59d5f6f996-nlm6j
+  namespace: skudasov-crib
+  labels:
+    waitLabel: app-node-1-db-59d5f6f996-nlm6j
+spec:
+  selector:
+    namespaces:
+      - skudasov-crib
+    labelSelectors:
+      'pod-template-hash': '59d5f6f996'
+  mode: all
+  action: delay
+  duration: 10s
+  delay:
+    latency: 300ms
+    correlation: '0'
+    jitter: 0ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - skudasov-crib
+      labelSelectors:
+        'pod-template-hash': '59d5f6f996'
+    mode: all

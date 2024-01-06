@@ -1,0 +1,27 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: latency-mockserver-7cb865999c-b7mgp
+  namespace: my-test-namespace
+  labels:
+    waitLabel: mockserver-7cb865999c-b7mgp
+spec:
+  selector:
+    namespaces:
+      - my-test-namespace
+    fieldSelectors:
+      metadata.name: mockserver-7cb865999c-b7mgp
+  mode: one
+  action: delay
+  duration: 1m
+  delay:
+    latency: 500ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - my-test-namespace
+      fieldSelectors:
+        metadata.name: mockserver-7cb865999c-b7mgp
+    mode: all

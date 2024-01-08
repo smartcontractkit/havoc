@@ -157,6 +157,7 @@ havoc run -c havoc.toml [namespace]
 					if err != nil {
 						return err
 					}
+					// nolint
 					return m.Run(nil)
 				},
 			},

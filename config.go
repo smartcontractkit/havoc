@@ -3,6 +3,7 @@ package havoc
 import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"os"
 	"strings"
 )
@@ -19,17 +20,49 @@ const (
 )
 
 const (
-	DefaultExperimentsDir         = "havoc-experiments"
-	DefaultGroupPercentage        = "30"
-	DefaultPodFailureDuration     = "1m"
-	DefaultNetworkLatencyDuration = "1m"
-	DefaultStressMemoryDuration   = "1m"
-	DefaultStressMemoryWorkers    = 1
-	DefaultStressMemoryAmount     = "512MB"
-	DefaultStressCPUDuration      = "1m"
-	DefaultStressCPUWorkers       = 1
-	DefaultStressCPULoad          = 100
-	DefaultNetworkLatency         = "500ms"
+	DefaultExperimentsDir           = "havoc-experiments"
+	DefaultPodFailureDuration       = "1m"
+	DefaultNetworkLatencyDuration   = "1m"
+	DefaultNetworkPartitionDuration = "1m"
+	DefaultNetworkPartitionLabel    = "network-partition-group"
+	DefaultStressMemoryDuration     = "1m"
+	DefaultStressMemoryWorkers      = 1
+	DefaultStressMemoryAmount       = "512MB"
+	DefaultStressCPUDuration        = "1m"
+	DefaultStressCPUWorkers         = 1
+	DefaultStressCPULoad            = 100
+	DefaultNetworkLatency           = "300ms"
+	DefaultMonkeyDuration           = "24h"
+	DefaultMonkeyMode               = "seq"
+	DefaultMonkeyCooldown           = "30s"
+)
+
+var (
+	DefaultGroupPercentage                 = []string{"10", "20", "30"}
+	DefaultGroupFixed                      = []string{"1", "2", "3"}
+	DefaultNetworkPartitionGroupPercentage = []string{"100"}
+)
+
+var (
+	DefaultIgnoreGroupLabels = []string{
+		"mainnet",
+		"release",
+		"intents.otterize.com",
+		"pod-template-hash",
+		"rollouts-pod-template-hash",
+		"chain.link/app",
+		"chain.link/cost-center",
+		"chain.link/env",
+		"chain.link/project",
+		"chain.link/team",
+		"app.kubernetes.io/part-of",
+		"app.kubernetes.io/managed-by",
+		"app.chain.link/product",
+		"app.kubernetes.io/version",
+		"app.chain.link/blockchain",
+		"app.kubernetes.io/instance",
+		"app.kubernetes.io/name",
+	}
 )
 
 type Config struct {
@@ -37,45 +70,69 @@ type Config struct {
 }
 
 type Havoc struct {
-	IgnoredPods     []string         `toml:"ignore_pods"`
-	Failure         *Failure         `toml:"failure"`
-	Latency         *Latency         `toml:"latency"`
-	StressMemory    *StressMemory    `toml:"stress_memory"`
-	StressCPU       *StressCPU       `toml:"stress_cpu"`
-	ExternalTargets *ExternalTargets `toml:"external_targets"`
-	Monkey          *Monkey          `toml:"monkey"`
+	Dir                  string                `toml:"dir"`
+	ExperimentTypes      []string              `toml:"experiment_types"`
+	NamespaceLabelFilter string                `toml:"namespace_label_filter"`
+	IgnoredPods          []string              `toml:"ignore_pods"`
+	IgnoreGroupLabels    []string              `toml:"ignore_group_labels"`
+	Failure              *Failure              `toml:"failure"`
+	Latency              *Latency              `toml:"latency"`
+	NetworkPartition     *NetworkPartition     `toml:"network_partition"`
+	StressMemory         *StressMemory         `toml:"stress_memory"`
+	StressCPU            *StressCPU            `toml:"stress_cpu"`
+	ExternalTargets      *ExternalTargets      `toml:"external_targets"`
+	BlockchainRewindHead *BlockchainRewindHead `toml:"blockchain_rewind_head"`
+	Monkey               *Monkey               `toml:"monkey"`
+	Grafana              *Grafana              `toml:"grafana"`
+}
+
+func dumpConfig(cfg *Config) {
+	if L.GetLevel() == zerolog.DebugLevel {
+		d, _ := toml.Marshal(cfg)
+		_ = os.WriteFile("config_dump.toml", d, os.ModePerm)
+	}
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Havoc: &Havoc{
+			Dir:               DefaultExperimentsDir,
+			ExperimentTypes:   RecommendedExperimentTypes,
+			IgnoreGroupLabels: DefaultIgnoreGroupLabels,
 			Failure: &Failure{
-				Duration:        DefaultPodFailureDuration,
-				GroupPercentage: DefaultGroupPercentage,
+				Duration:   DefaultPodFailureDuration,
+				GroupFixed: DefaultGroupFixed,
 			},
 			Latency: &Latency{
-				Duration:        DefaultNetworkLatencyDuration,
-				Latency:         DefaultNetworkLatency,
-				GroupPercentage: DefaultGroupPercentage,
+				Duration:   DefaultNetworkLatencyDuration,
+				Latency:    DefaultNetworkLatency,
+				GroupFixed: DefaultGroupFixed,
 			},
 			StressMemory: &StressMemory{
-				Duration: DefaultStressMemoryDuration,
-				Workers:  DefaultStressMemoryWorkers,
-				Memory:   DefaultStressMemoryAmount,
+				Duration:   DefaultStressMemoryDuration,
+				Workers:    DefaultStressMemoryWorkers,
+				Memory:     DefaultStressMemoryAmount,
+				GroupFixed: DefaultGroupFixed,
 			},
 			StressCPU: &StressCPU{
-				Duration: DefaultStressCPUDuration,
-				Workers:  DefaultStressCPUWorkers,
-				Load:     DefaultStressCPULoad,
+				Duration:   DefaultStressCPUDuration,
+				Workers:    DefaultStressCPUWorkers,
+				Load:       DefaultStressCPULoad,
+				GroupFixed: DefaultGroupFixed,
+			},
+			NetworkPartition: &NetworkPartition{
+				Duration:        DefaultNetworkPartitionDuration,
+				Label:           DefaultNetworkPartitionLabel,
+				GroupPercentage: DefaultNetworkPartitionGroupPercentage,
 			},
 			Monkey: &Monkey{
-				Duration:                "1h",
-				Mode:                    "seq",
-				Cooldown:                "30s",
-				MaxSimultaneousFailures: 1,
-				GrafanaURL:              os.Getenv("GRAFANA_URL"),
-				GrafanaToken:            os.Getenv("GRAFANA_TOKEN"),
-				DashboardName:           os.Getenv("DASHBOARD_NAME"),
+				Duration: DefaultMonkeyDuration,
+				Mode:     DefaultMonkeyMode,
+				Cooldown: DefaultMonkeyCooldown,
+			},
+			Grafana: &Grafana{
+				URL:   os.Getenv("GRAFANA_URL"),
+				Token: os.Getenv("GRAFANA_TOKEN"),
 			},
 		},
 	}
@@ -83,6 +140,9 @@ func DefaultConfig() *Config {
 
 func (c *Config) Validate() []error {
 	errs := make([]error, 0)
+	if c.Havoc.Dir == "" {
+		errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.dir must not be empty"))
+	}
 	if c.Havoc.Failure == nil {
 		errs = append(errs, errors.New(ErrFailureGroupIsNil))
 	}
@@ -125,43 +185,50 @@ func (c *Config) Validate() []error {
 		}
 	}
 	if c.Havoc.Monkey != nil {
-		if c.Havoc.Monkey.Dir == "" {
-			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.dir must not be empty"))
-		}
 		if c.Havoc.Monkey.Mode == "" {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.mode must be either \"seq\" or \"rand\""))
 		}
 		if c.Havoc.Monkey.Duration == "" {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.duration must be in Go duration format, 1d2h3m0s"))
 		}
-		if c.Havoc.Monkey.MaxSimultaneousFailures < 0 {
-			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.max_simultaneous_failures must be > 0"))
-		}
 	}
 	return errs
 }
 
 type Failure struct {
-	Duration        string `toml:"duration"`
-	GroupPercentage string `toml:"group_percentage"`
+	Duration        string   `toml:"duration"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
 }
 
 type Latency struct {
-	Duration        string `toml:"duration"`
-	GroupPercentage string `toml:"group_percentage"`
-	Latency         string `toml:"latency"`
+	Duration        string   `toml:"duration"`
+	Latency         string   `toml:"latency"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
+}
+
+type NetworkPartition struct {
+	Duration        string   `toml:"duration"`
+	Label           string   `toml:"label"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
 }
 
 type StressMemory struct {
-	Duration string `toml:"duration"`
-	Workers  int    `toml:"workers"`
-	Memory   string `toml:"memory"`
+	Duration        string   `toml:"duration"`
+	Workers         int      `toml:"workers"`
+	Memory          string   `toml:"memory"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
 }
 
 type StressCPU struct {
-	Duration string `toml:"duration"`
-	Workers  int    `toml:"workers"`
-	Load     int    `toml:"load"`
+	Duration        string   `toml:"duration"`
+	Workers         int      `toml:"workers"`
+	Load            int      `toml:"load"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
 }
 
 type ExternalTargets struct {
@@ -169,23 +236,32 @@ type ExternalTargets struct {
 	URLs     []string `toml:"urls"`
 }
 
+type BlockchainRewindHead struct {
+	Duration            string  `toml:"duration"`
+	ExecutorPodPrefix   string  `toml:"executor_pod_prefix"`
+	NodeInternalHTTPURL string  `toml:"node_internal_http_url"`
+	Blocks              []int64 `toml:"blocks"`
+}
+
 type Monkey struct {
-	Duration                string `toml:"duration"`
-	Cooldown                string `toml:"cooldown"`
-	Dir                     string `toml:"dir"`
-	Mode                    string `toml:"mode"`
-	MaxSimultaneousFailures int    `toml:"max_simultaneous_failures"`
-	GrafanaURL              string `toml:"grafana_url"`
-	GrafanaToken            string `toml:"grafana_token"`
-	DashboardName           string `toml:"dashboard_name"`
+	Duration string `toml:"duration"`
+	Cooldown string `toml:"cooldown"`
+	Mode     string `toml:"mode"`
+}
+
+type Grafana struct {
+	URL           string   `toml:"grafana_url"`
+	Token         string   `toml:"grafana_token"`
+	DashboardUIDs []string `toml:"dashboard_uids"`
 }
 
 func ReadConfig(path string) (*Config, error) {
 	cfg := DefaultConfig()
+	dumpConfig(cfg)
 	if path == "" {
 		L.Info().Msg("No config specified, using default configuration")
 	} else {
-		L.Info().
+		L.Debug().
 			Str("Path", path).
 			Msg("Reading config from path")
 		d, err := os.ReadFile(path)
@@ -197,15 +273,15 @@ func ReadConfig(path string) (*Config, error) {
 			return nil, errors.Wrap(err, ErrUnmarshalSethConfig)
 		}
 	}
-	L.Info().
+	L.Debug().
 		Interface("Config", cfg).
 		Msg("Configuration loaded")
-	cfg.Havoc.Monkey.GrafanaURL = os.Getenv("GRAFANA_URL")
-	cfg.Havoc.Monkey.GrafanaToken = os.Getenv("GRAFANA_TOKEN")
-	cfg.Havoc.Monkey.DashboardName = os.Getenv("DASHBOARD_NAME")
+	cfg.Havoc.Grafana.URL = os.Getenv("GRAFANA_URL")
+	cfg.Havoc.Grafana.Token = os.Getenv("GRAFANA_TOKEN")
 	return cfg, nil
 }
 
+// nolint
 func sliceContains(target string, array []string) bool {
 	for _, element := range array {
 		if element == target {

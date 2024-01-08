@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/smartcontractkit/havoc"
 	"os"
+
+	"github.com/smartcontractkit/havoc"
 )
 
 func main() {

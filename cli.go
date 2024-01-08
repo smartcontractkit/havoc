@@ -2,22 +2,21 @@ package havoc
 
 import (
 	"fmt"
-	"github.com/c-bata/go-prompt"
-	"github.com/pkg/errors"
-	"github.com/urfave/cli/v2"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/c-bata/go-prompt"
+	"github.com/pkg/errors"
+	"github.com/urfave/cli/v2"
 )
 
 const (
 	DefaultCMDTimeout = "3m"
 
-	ErrInvalidChaosType   = "invalid chaos type, valid types are: failure, latency, memory, cpu, group-failure, group-latency"
-	ErrNoSelection        = "no selection, exiting"
-	ErrInvalidNamespace   = "first argument must be a valid k8s namespace"
-	ErrAutocompleteError  = "autocomplete file walk errored"
-	ErrInvalidMonkeyCreds = "in order to run monkey you need to set GRAFANA_URL/GRAFANA_TOKEN/DASHBOARD_NAME vars"
+	ErrNoSelection       = "no selection, exiting"
+	ErrInvalidNamespace  = "first argument must be a valid k8s namespace"
+	ErrAutocompleteError = "autocomplete file walk errored"
 )
 
 func experimentCompleter(dir string, expType string) (func(d prompt.Document) []prompt.Suggest, error) {
@@ -45,6 +44,30 @@ func experimentCompleter(dir string, expType string) (func(d prompt.Document) []
 	}, nil
 }
 
+func experimentTypeCompleter(dir string) (func(d prompt.Document) []prompt.Suggest, error) {
+	s := make([]prompt.Suggest, 0)
+	err := filepath.Walk(
+		dir,
+		func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() && info.Name() != dir {
+				s = append(s, prompt.Suggest{
+					Text:        info.Name(),
+					Description: info.Name(),
+				})
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return func(d prompt.Document) []prompt.Suggest {
+		return prompt.FilterHasPrefix(s, d.GetWordBeforeCursor(), true)
+	}, nil
+}
+
 func RunCLI(args []string) error {
 	app := &cli.App{
 		EnableBashCompletion: true,
@@ -58,7 +81,6 @@ func RunCLI(args []string) error {
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "config", Aliases: []string{"c"}},
-			&cli.StringFlag{Name: "dir", Aliases: []string{"d"}},
 		},
 		Commands: []*cli.Command{
 			{
@@ -77,19 +99,15 @@ havoc -c havoc.toml -d custom_experiments [namespace]
 					if ns == "" {
 						return errors.New(ErrInvalidNamespace)
 					}
-					dir := cliCtx.String("dir")
-					if dir == "" {
-						dir = DefaultExperimentsDir
-					} else {
-						if _, err := os.Stat(dir); err != nil {
-							return err
-						}
-					}
 					cfg, err := ReadConfig(cliCtx.String("config"))
 					if err != nil {
 						return err
 					}
-					return GenerateSpecs(ns, dir, cfg)
+					m, err := NewController(cfg)
+					if err != nil {
+						return err
+					}
+					return m.GenerateSpecs(ns)
 				},
 			},
 			{
@@ -98,33 +116,53 @@ havoc -c havoc.toml -d custom_experiments [namespace]
 				Aliases:  []string{"a"},
 				Description: `applies an experiment from a file:
 examples:
-havoc apply failure
-havoc apply latency
-havoc apply memory
-havoc apply cpu
+# selecting an experiment
+havoc -c havoc.toml apply
+# applying experiment directly with relative or abs path
+havoc apply ${experiment_path}
 `,
 				Action: func(cliCtx *cli.Context) error {
-					chaosType := cliCtx.Args().Get(0)
-					if !sliceContains(chaosType, RecommendedExperimentTypes) {
-						return errors.New(ErrInvalidChaosType)
-					}
-					dir := cliCtx.String("dir")
-					if dir == "" {
-						dir = DefaultExperimentsDir
-					} else {
-						if _, err := os.Stat(dir); err != nil {
-							return err
-						}
-					}
-					c, err := experimentCompleter(dir, chaosType)
+					cfg, err := ReadConfig(cliCtx.String("config"))
 					if err != nil {
-						return errors.Wrap(err, ErrAutocompleteError)
+						return err
 					}
-					expName := prompt.Input(">> ", c)
-					if expName == "" {
-						return errors.New(ErrNoSelection)
+					m, err := NewController(cfg)
+					if err != nil {
+						return err
 					}
-					return ApplyChaosFile(dir, chaosType, expName, true)
+					cc, err := experimentTypeCompleter(m.cfg.Havoc.Dir)
+					if err != nil {
+						return err
+					}
+
+					var expPath string
+
+					arg := cliCtx.Args().Get(0)
+
+					if arg != "" {
+						expPath = arg
+					} else {
+						expType := prompt.Input("Choose experiment type >> ", cc)
+						if expType == "" {
+							return errors.New(ErrNoSelection)
+						}
+						c, err := experimentCompleter(m.cfg.Havoc.Dir, expType)
+						if err != nil {
+							return errors.Wrap(err, ErrAutocompleteError)
+						}
+						expName := prompt.Input("Choose experiment name >> ", c)
+						if expName == "" {
+							return errors.New(ErrNoSelection)
+						}
+						expPath = fmt.Sprintf("%s/%s/%s", cfg.Havoc.Dir, expType, expName)
+					}
+
+					nexp, err := NewNamedExperiment(expPath)
+					if err != nil {
+						return err
+					}
+
+					return m.ApplyAndAnnotate(nexp)
 				},
 			},
 			{
@@ -142,22 +180,27 @@ havoc run -c havoc.toml [namespace]
 					if err != nil {
 						return err
 					}
-					if cfg.Havoc.Monkey.Dir == "" {
-						cfg.Havoc.Monkey.Dir = "havoc-monkey-temp-dir"
-						err = GenerateSpecs(
-							ns,
-							cfg.Havoc.Monkey.Dir,
-							cfg,
-						)
-						if err != nil {
-							return err
-						}
-					}
-					m, err := NewMonkey(cfg)
+					m, err := NewController(cfg)
 					if err != nil {
 						return err
 					}
-					return m.Run(nil)
+					if _, err := os.Stat(cfg.Havoc.Dir); err != nil {
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Dir not found, generating specified experiments directory")
+						err = m.GenerateSpecs(ns)
+						if err != nil {
+							return err
+						}
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Using existing experiments dir, skipping generation")
+					} else {
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Using existing experiments dir, skipping generation")
+					}
+					return m.Run()
 				},
 			},
 		},

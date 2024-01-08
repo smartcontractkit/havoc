@@ -43,8 +43,17 @@ test.sh
 
 # Default generated experiments
 havoc-experiments
+havoc-default
+experiments-crib-core
 testdata/experiments-test
 havoc-monkey-temp-dir
 
 # General env vars config
 .envrc
+
+# Dumps of configs
+config_dump.toml
+pods_dump.json
+testdata/result/**
+testdata/results/**
+!testdata/results/.gitkeep

@@ -16,4 +16,4 @@ jobs:
           cache: true
       - name: Run tests
         run: |
-          go test -v -count 1
+          make test

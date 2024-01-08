@@ -15,6 +15,10 @@ test_cover:
 install:
 	go install cmd/havoc.go
 
+.PHONE: build
+build:
+	go build cmd/havoc.go
+
 .PHONY: lint
 lint:
 	golangci-lint --color=always run -v

@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "metadata": {
+        "name": "pod-1",
+        "labels": {
+          "components-group": "group-1"
+        }
+      }
+    },
+    {
+      "metadata": {
+        "name": "pod-2",
+        "labels": {
+          "components-group": "group-1"
+        }
+      }
+    }
+  ]
+}

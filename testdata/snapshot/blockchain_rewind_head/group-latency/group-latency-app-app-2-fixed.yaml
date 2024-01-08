@@ -1,0 +1,27 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: group-latency-app-app-2-fixed
+  namespace: cl-cluster
+spec:
+  selector:
+    namespaces:
+      - cl-cluster
+    labelSelectors:
+      'app': 'app'
+  mode: fixed
+  value: '2'
+  action: delay
+  duration: 10s
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - cl-cluster
+      labelSelectors:
+        'app': 'app'
+    mode: fixed
+    value: '2'

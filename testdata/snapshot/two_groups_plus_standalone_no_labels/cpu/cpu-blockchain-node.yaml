@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-blockchain-node
+  namespace: cl-cluster
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: blockchain-node
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

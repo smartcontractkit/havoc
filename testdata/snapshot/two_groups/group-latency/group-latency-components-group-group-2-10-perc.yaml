@@ -1,0 +1,27 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: group-latency-components-group-group-2-10-perc
+  namespace: cl-cluster
+spec:
+  selector:
+    namespaces:
+      - cl-cluster
+    labelSelectors:
+      'components-group': 'group-2'
+  mode: fixed-percent
+  value: '10'
+  action: delay
+  duration: 1m
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - cl-cluster
+      labelSelectors:
+        'components-group': 'group-2'
+    mode: fixed-percent
+    value: '10'

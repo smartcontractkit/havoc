@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -20,19 +21,23 @@ import (
 const (
 	ErrParsingTemplate = "failed to parse Go text template"
 
-	ErrExperimentTimeout = "waiting for experiment to finish timed out"
-	ErrExperimentApply   = "error applying experiment manifest"
+	ErrExperimentTimeout   = "waiting for experiment to finish timed out"
+	ErrExperimentApply     = "error applying experiment manifest"
+	ErrEmptyExperimentsDir = "no experiments have been found, dir is empty, check 'experiment_types' setting in your config, they should match"
 )
 
 var (
 	RecommendedExperimentTypes = []string{
 		ChaosTypeFailure,
-		ChaosTypeGroupFailure,
 		ChaosTypeLatency,
+		ChaosTypeGroupFailure,
 		ChaosTypeGroupLatency,
 		ChaosTypeStressMemory,
+		ChaosTypeStressGroupMemory,
 		ChaosTypeStressCPU,
-		ChaosTypePartitionExternal,
+		ChaosTypeStressGroupCPU,
+		ChaosTypePartitionGroup,
+		//ChaosTypePartitionExternal,
 	}
 )
 
@@ -50,15 +55,23 @@ func MarshalTemplate(jobSpec interface{}, name, templateString string) (string, 
 	return buf.String(), err
 }
 
+type CommonExperimentMeta struct {
+	Kind     string `yaml:"string"`
+	Metadata struct {
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
+	} `yaml:"metadata"`
+}
+
 type NetworkChaosExperiment struct {
-	ExperimentName  string
-	Namespace       string
-	WaitLabel       string
-	Duration        string
-	Latency         string
-	PodName         string
-	GroupPercentage string
-	Selector        string
+	ExperimentName string
+	Mode           string
+	ModeValue      string
+	Namespace      string
+	Duration       string
+	Latency        string
+	PodName        string
+	Selector       string
 }
 
 func (m NetworkChaosExperiment) String() (string, error) {
@@ -68,8 +81,6 @@ apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   selector:
     namespaces:
@@ -81,11 +92,9 @@ spec:
     fieldSelectors:
       metadata.name: {{ .PodName }}	
 	{{- end}}
-  {{- if .Selector }}
-  mode: fixed-percent
-  value: '{{ .GroupPercentage }}'
-  {{- else }}
-  mode: one
+  mode: {{ .Mode }}
+  {{- if .ModeValue }}
+  value: '{{ .ModeValue }}'
   {{- end }}
   action: delay
   duration: {{ .Duration }}
@@ -103,7 +112,61 @@ spec:
       fieldSelectors:
         metadata.name: {{ .PodName }}	
 	  {{- end}}
-    mode: all
+    mode: {{ .Mode }}
+    {{- if .ModeValue }}
+    value: '{{ .ModeValue }}'
+    {{- end }}
+`
+	return MarshalTemplate(
+		m,
+		uuid.NewString(),
+		tpl,
+	)
+}
+
+type NetworkChaosGroupPartitionExperiment struct {
+	ExperimentName string
+	ModeTo         string
+	ModeToValue    string
+	ModeFrom       string
+	ModeFromValue  string
+	Direction      string
+	Namespace      string
+	Duration       string
+	SelectorFrom   string
+	SelectorTo     string
+}
+
+func (m NetworkChaosGroupPartitionExperiment) String() (string, error) {
+	tpl := `
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: {{ .ExperimentName }}
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    namespaces:
+      - {{ .Namespace }}
+    labelSelectors:
+      {{ .SelectorFrom }}
+  action: partition
+  mode: {{ .ModeFrom }}
+  {{- if .ModeFromValue }}
+  value: '{{ .ModeFromValue }}'
+  {{- end }}
+  duration: {{ .Duration }}
+  direction: {{ .Direction }}
+  target:
+    mode: {{ .ModeTo }}
+    {{- if .ModeToValue }}
+    value: '{{ .ModeToValue }}'
+    {{- end }}
+    selector:
+      namespaces:
+        - {{ .Namespace }}
+      labelSelectors:
+        {{ .SelectorTo }}
 `
 	return MarshalTemplate(
 		m,
@@ -115,7 +178,6 @@ spec:
 type NetworkChaosExternalPartitionExperiment struct {
 	ExperimentName string
 	Namespace      string
-	WaitLabel      string
 	Duration       string
 	PodName        string
 	ExternalURL    string
@@ -128,8 +190,6 @@ apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   selector:
     namespaces:
@@ -154,13 +214,13 @@ spec:
 }
 
 type PodFailureExperiment struct {
-	ExperimentName  string
-	Namespace       string
-	WaitLabel       string
-	Duration        string
-	PodName         string
-	GroupPercentage string
-	Selector        string
+	ExperimentName string
+	Mode           string
+	ModeValue      string
+	Namespace      string
+	Duration       string
+	PodName        string
+	Selector       string
 }
 
 func (m PodFailureExperiment) String() (string, error) {
@@ -170,15 +230,11 @@ kind: PodChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   action: pod-failure
-  {{- if .Selector }}
-  mode: fixed-percent
-  value: '{{ .GroupPercentage }}'
-  {{- else }}
-  mode: one
+  mode: {{ .Mode }}
+  {{- if .ModeValue }}
+  value: '{{ .ModeValue }}'
   {{- end }}
   duration: {{ .Duration }}
   selector:
@@ -199,8 +255,9 @@ spec:
 
 type PodStressCPUExperiment struct {
 	ExperimentName string
+	Mode           string
+	ModeValue      string
 	Namespace      string
-	WaitLabel      string
 	Workers        int
 	Load           int
 	Duration       string
@@ -215,10 +272,11 @@ kind: StressChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
-  mode: one
+  mode: {{ .Mode }}
+  {{- if .ModeValue }}
+  value: '{{ .ModeValue }}'
+  {{- end }}
   duration: {{ .Duration }}
   selector:
     {{- if .Selector}}
@@ -242,8 +300,9 @@ spec:
 
 type PodStressMemoryExperiment struct {
 	ExperimentName string
+	Mode           string
+	ModeValue      string
 	Namespace      string
-	WaitLabel      string
 	Workers        int
 	Memory         string
 	Duration       string
@@ -258,10 +317,11 @@ kind: StressChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
-  mode: one
+  mode: {{ .Mode }}
+  {{- if .ModeValue }}
+  value: '{{ .ModeValue }}'
+  {{- end }}
   duration: {{ .Duration }}
   selector:
     {{- if .Selector}}
@@ -289,15 +349,37 @@ type NamedExperiment struct {
 	Manifest string
 }
 
-func ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, error) {
+func (m *Controller) readExistingExperimentTypes(dir string) ([]string, error) {
+	expTypes := make([]string, 0)
+	err := filepath.Walk(
+		dir,
+		func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() && info.Name() != dir {
+				expTypes = append(expTypes, info.Name())
+				return nil
+			}
+			return err
+		})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(expTypes, func(i, j int) bool {
+		return expTypes[i] < expTypes[j]
+	})
+	L.Info().Strs("Order", expTypes).Msg("Order of experiment dirs execution")
+	return expTypes, nil
+}
+
+func (m *Controller) ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, error) {
 	expData := make([]*NamedExperiment, 0)
 	for _, expType := range expTypes {
 		targetDir := fmt.Sprintf("%s/%s", dir, expType)
 		if _, err := os.Stat(targetDir); err != nil {
-			log.Warn().
-				Str("Dir", targetDir).
-				Msg("Experiments dir not found, skipping")
-			return nil, nil
+			// it's okay, some experiments may be skipped due configuration
+			continue
 		}
 		err := filepath.Walk(
 			fmt.Sprintf("%s/%s", dir, expType),
@@ -326,144 +408,306 @@ func ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, 
 	return expData, nil
 }
 
-func generatePodFailureExperiments(namespace string, podInfo []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, pi := range podInfo {
-		ph, err := PodFailureExperiment{
-			Namespace:      namespace,
-			ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeFailure, pi.PodName),
-			WaitLabel:      pi.PodName,
-			Duration:       cfg.Havoc.Failure.Duration,
-			PodName:        pi.PodName,
-		}.String()
-		if err != nil {
-			return nil, err
+func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupLabels []string, npLabels [][]string) (*ChaosSpecs, error) {
+	allExperimentsByType := make(map[string]map[string]string)
+	for _, expType := range m.cfg.Havoc.ExperimentTypes {
+		switch expType {
+		case ChaosTypePartitionExternal:
+			experiments := make(map[string]string)
+			if m.cfg.Havoc.ExternalTargets == nil {
+				continue
+			}
+			for _, u := range m.cfg.Havoc.ExternalTargets.URLs {
+				nsAndURLHash := fmt.Sprintf("%s-%s", namespace, urlHash(u))
+				experiment, err := NetworkChaosExternalPartitionExperiment{
+					Namespace:      namespace,
+					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypePartitionExternal, nsAndURLHash),
+					Duration:       m.cfg.Havoc.ExternalTargets.Duration,
+					ExternalURL:    fmt.Sprintf("'%s'", u),
+				}.String()
+				if err != nil {
+					return nil, err
+				}
+				experiments[nsAndURLHash] = experiment
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypePartitionGroup:
+			experiments := make(map[string]string)
+			for _, pair := range npLabels {
+				for _, groupModeValue := range m.cfg.Havoc.NetworkPartition.GroupPercentage {
+					sanitizedLabel := sanitizeLabel(fmt.Sprintf("%s-to-%s", pair[0], pair[1]))
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
+					experiment, err := NetworkChaosGroupPartitionExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypePartitionGroup, sanitizedLabel),
+						Duration:       m.cfg.Havoc.NetworkPartition.Duration,
+						ModeFrom:       "fixed-percent",
+						ModeFromValue:  groupModeValue,
+						ModeTo:         "fixed-percent",
+						ModeToValue:    groupModeValue,
+						Direction:      "from",
+						SelectorFrom:   pair[0],
+						SelectorTo:     pair[1],
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+				for _, groupModeValue := range m.cfg.Havoc.NetworkPartition.GroupFixed {
+					sanitizedLabel := sanitizeLabel(fmt.Sprintf("%s-to-%s", pair[0], pair[1]))
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
+					experiment, err := NetworkChaosGroupPartitionExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypePartitionGroup, sanitizedLabel),
+						Duration:       m.cfg.Havoc.NetworkPartition.Duration,
+						ModeFrom:       "fixed-percent",
+						ModeFromValue:  groupModeValue,
+						ModeTo:         "fixed-percent",
+						ModeToValue:    groupModeValue,
+						Direction:      "from",
+						SelectorFrom:   pair[0],
+						SelectorTo:     pair[1],
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeFailure:
+			experiments := make(map[string]string)
+			for _, pi := range lfd {
+				experiment, err := PodFailureExperiment{
+					Namespace:      namespace,
+					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeFailure, pi.PodName),
+					Mode:           "one",
+					Duration:       m.cfg.Havoc.Failure.Duration,
+					PodName:        pi.PodName,
+				}.String()
+				if err != nil {
+					return nil, err
+				}
+				experiments[pi.PodName] = experiment
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeLatency:
+			experiments := make(map[string]string)
+			for _, mfp := range lfd {
+				experiment, err := NetworkChaosExperiment{
+					Namespace:      namespace,
+					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeLatency, mfp.PodName),
+					Mode:           "one",
+					Duration:       m.cfg.Havoc.Latency.Duration,
+					Latency:        m.cfg.Havoc.Latency.Latency,
+					PodName:        mfp.PodName,
+				}.String()
+				if err != nil {
+					return nil, err
+				}
+				experiments[mfp.PodName] = experiment
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeStressCPU:
+			experiments := make(map[string]string)
+			for _, mfp := range lfd {
+				experiment, err := PodStressCPUExperiment{
+					Namespace:      namespace,
+					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressCPU, mfp.PodName),
+					Duration:       m.cfg.Havoc.StressCPU.Duration,
+					Workers:        m.cfg.Havoc.StressCPU.Workers,
+					Load:           m.cfg.Havoc.StressCPU.Load,
+					Mode:           "one",
+					PodName:        mfp.PodName,
+				}.String()
+				if err != nil {
+					return nil, err
+				}
+				experiments[mfp.PodName] = experiment
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeStressMemory:
+			experiments := make(map[string]string)
+			for _, mfp := range lfd {
+				experiment, err := PodStressMemoryExperiment{
+					Namespace:      namespace,
+					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressMemory, mfp.PodName),
+					Duration:       m.cfg.Havoc.StressMemory.Duration,
+					Workers:        m.cfg.Havoc.StressMemory.Workers,
+					Memory:         m.cfg.Havoc.StressMemory.Memory,
+					Mode:           "one",
+					PodName:        mfp.PodName,
+				}.String()
+				if err != nil {
+					return nil, err
+				}
+				experiments[mfp.PodName] = experiment
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeStressGroupMemory:
+			experiments := make(map[string]string)
+			for _, label := range groupLabels {
+				for _, groupModeValue := range m.cfg.Havoc.StressMemory.GroupPercentage {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
+					experiment, err := PodStressMemoryExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressGroupMemory, sanitizedLabel),
+						Duration:       m.cfg.Havoc.StressMemory.Duration,
+						Workers:        m.cfg.Havoc.StressMemory.Workers,
+						Memory:         m.cfg.Havoc.StressMemory.Memory,
+						Mode:           "fixed-percent",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+				for _, groupModeValue := range m.cfg.Havoc.StressMemory.GroupFixed {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
+					experiment, err := PodStressMemoryExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressGroupMemory, sanitizedLabel),
+						Duration:       m.cfg.Havoc.StressMemory.Duration,
+						Workers:        m.cfg.Havoc.StressMemory.Workers,
+						Memory:         m.cfg.Havoc.StressMemory.Memory,
+						Mode:           "fixed",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeStressGroupCPU:
+			experiments := make(map[string]string)
+			for _, label := range groupLabels {
+				for _, groupModeValue := range m.cfg.Havoc.StressCPU.GroupPercentage {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
+					experiment, err := PodStressCPUExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressGroupCPU, sanitizedLabel),
+						Duration:       m.cfg.Havoc.StressCPU.Duration,
+						Workers:        m.cfg.Havoc.StressCPU.Workers,
+						Load:           m.cfg.Havoc.StressCPU.Load,
+						Mode:           "fixed-percent",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+				for _, groupModeValue := range m.cfg.Havoc.StressCPU.GroupFixed {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
+					experiment, err := PodStressCPUExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressGroupCPU, sanitizedLabel),
+						Duration:       m.cfg.Havoc.StressCPU.Duration,
+						Workers:        m.cfg.Havoc.StressCPU.Workers,
+						Load:           m.cfg.Havoc.StressCPU.Load,
+						Mode:           "fixed",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeGroupFailure:
+			experiments := make(map[string]string)
+			for _, label := range groupLabels {
+				for _, groupModeValue := range m.cfg.Havoc.Failure.GroupPercentage {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
+					experiment, err := PodFailureExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
+						Duration:       m.cfg.Havoc.Failure.Duration,
+						Mode:           "fixed-percent",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+				for _, groupModeValue := range m.cfg.Havoc.Failure.GroupFixed {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
+					experiment, err := PodFailureExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
+						Duration:       m.cfg.Havoc.Failure.Duration,
+						Mode:           "fixed",
+						ModeValue:      groupModeValue,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+			}
+			allExperimentsByType[expType] = experiments
+		case ChaosTypeGroupLatency:
+			experiments := make(map[string]string)
+			for _, label := range groupLabels {
+				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupPercentage {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
+					experiment, err := NetworkChaosExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
+						Mode:           "fixed-percent",
+						ModeValue:      groupModeValue,
+						Duration:       m.cfg.Havoc.Latency.Duration,
+						Latency:        m.cfg.Havoc.Latency.Latency,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupFixed {
+					sanitizedLabel := sanitizeLabel(label)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
+					experiment, err := NetworkChaosExperiment{
+						Namespace:      namespace,
+						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
+						Mode:           "fixed",
+						ModeValue:      groupModeValue,
+						Duration:       m.cfg.Havoc.Latency.Duration,
+						Latency:        m.cfg.Havoc.Latency.Latency,
+						Selector:       label,
+					}.String()
+					if err != nil {
+						return nil, err
+					}
+					experiments[sanitizedLabel] = experiment
+				}
+			}
+			allExperimentsByType[expType] = experiments
 		}
-		m[pi.PodName] = ph
 	}
-	return m, nil
-}
-
-func generatePodFailureGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, label := range groupLabels {
-		sanitizedLabel := sanitizeLabel(label)
-		ph, err := PodFailureExperiment{
-			Namespace:       namespace,
-			ExperimentName:  fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
-			WaitLabel:       sanitizedLabel,
-			Duration:        cfg.Havoc.Failure.Duration,
-			GroupPercentage: cfg.Havoc.Failure.GroupPercentage,
-			Selector:        label,
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[sanitizedLabel] = ph
-	}
-	return m, nil
-}
-
-func generatePodLatenciesExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, mfp := range lfd {
-		pl, err := NetworkChaosExperiment{
-			Namespace:      namespace,
-			ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeLatency, mfp.PodName),
-			WaitLabel:      mfp.PodName,
-			Duration:       cfg.Havoc.Latency.Duration,
-			Latency:        cfg.Havoc.Latency.Latency,
-			PodName:        mfp.PodName,
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[mfp.PodName] = pl
-	}
-	return m, nil
-}
-
-func generatePodLatencyGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, label := range groupLabels {
-		sanitizedLabel := sanitizeLabel(label)
-		ph, err := NetworkChaosExperiment{
-			Namespace:       namespace,
-			ExperimentName:  fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
-			WaitLabel:       sanitizedLabel,
-			Duration:        cfg.Havoc.Latency.Duration,
-			GroupPercentage: cfg.Havoc.Latency.GroupPercentage,
-			Latency:         cfg.Havoc.Latency.Latency,
-			Selector:        label,
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[sanitizedLabel] = ph
-	}
-	return m, nil
-}
-
-func generatePodStressMemoryExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, mfp := range lfd {
-		ph, err := PodStressMemoryExperiment{
-			Namespace:      namespace,
-			ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressMemory, mfp.PodName),
-			WaitLabel:      mfp.PodName,
-			Duration:       cfg.Havoc.StressMemory.Duration,
-			Workers:        cfg.Havoc.StressMemory.Workers,
-			Memory:         cfg.Havoc.StressMemory.Memory,
-			PodName:        mfp.PodName,
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[mfp.PodName] = ph
-	}
-	return m, nil
-}
-
-func generatePodStressCPUExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	for _, mfp := range lfd {
-		ph, err := PodStressCPUExperiment{
-			Namespace:      namespace,
-			ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressCPU, mfp.PodName),
-			WaitLabel:      mfp.PodName,
-			Duration:       cfg.Havoc.StressCPU.Duration,
-			Workers:        cfg.Havoc.StressCPU.Workers,
-			Load:           cfg.Havoc.StressCPU.Load,
-			PodName:        mfp.PodName,
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[mfp.PodName] = ph
-	}
-	return m, nil
-}
-
-func generateExternalTargetsPartitions(namespace string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
-	if cfg.Havoc.ExternalTargets == nil {
-		return nil, nil
-	}
-	for _, u := range cfg.Havoc.ExternalTargets.URLs {
-		nsAndURLHash := fmt.Sprintf("%s-%s", namespace, urlHash(u))
-		ph, err := NetworkChaosExternalPartitionExperiment{
-			Namespace:      namespace,
-			ExperimentName: fmt.Sprintf("%s-%s", ChaosTypePartitionExternal, nsAndURLHash),
-			WaitLabel:      nsAndURLHash,
-			Duration:       cfg.Havoc.ExternalTargets.Duration,
-			ExternalURL:    fmt.Sprintf("'%s'", u),
-		}.String()
-		if err != nil {
-			return nil, err
-		}
-		m[nsAndURLHash] = ph
-	}
-	return m, nil
+	return &ChaosSpecs{
+		ExperimentsByType: allExperimentsByType,
+	}, nil
 }
 
 func urlHash(url string) string {
@@ -543,20 +787,24 @@ func eventsForLastMinutes(out string, timeOfApplication time.Time) error {
 	return nil
 }
 
-func ApplyChaosFile(dir string, chaosType string, expName string, wait bool) error {
+func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool) error {
 	timeOfApplication := time.Now()
 	var errDefer error
-	data, err := os.ReadFile(filepath.Join(dir, chaosType, expName))
+	data, err := os.ReadFile(filepath.Join(m.cfg.Havoc.Dir, chaosType, expName))
 	if err != nil {
 		return err
 	}
+	var meta *CommonExperimentMeta
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return err
+	}
 	L.Info().
-		Str("Dir", dir).
+		Str("Dir", m.cfg.Havoc.Dir).
 		Str("Type", chaosType).
 		Str("Name", expName).
 		Msg("Applying experiment manifest")
 	fmt.Println(string(data))
-	_, err = ExecCmd(fmt.Sprintf("kubectl apply -f %s/%s/%s", dir, chaosType, expName))
+	_, err = ExecCmd(fmt.Sprintf("kubectl apply -f %s/%s/%s", m.cfg.Havoc.Dir, chaosType, expName))
 	if err != nil {
 		return errors.Wrap(err, ErrExperimentApply)
 	}
@@ -568,15 +816,22 @@ func ApplyChaosFile(dir string, chaosType string, expName string, wait bool) err
 			expName = strings.Replace(expName, ".yaml", "", -1)
 			var out string
 			out, errDefer = ExecCmd(
-				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s-%s -o json",
-					chaosType,
+				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s -o json",
 					expName,
 				))
 			errDefer = eventsForLastMinutes(out, timeOfApplication)
-			_, errDefer = ExecCmd(fmt.Sprintf("kubectl delete %s %s-%s", ExperimentsToCRDs[chaosType], chaosType, expName))
+			_, errDefer = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", meta.Metadata.Namespace, ExperimentsToCRDs[chaosType], expName))
+			if errDefer != nil {
+				L.Error().Err(err).Msg("Error reading events")
+			}
 		}()
+		var meta *CommonExperimentMeta
+		if err := yaml.Unmarshal(data, &meta); err != nil {
+			return err
+		}
 		_, err = ExecCmd(
-			fmt.Sprintf("kubectl wait %s -l waitLabel=%s --for condition=AllRecovered=True --timeout %s",
+			fmt.Sprintf("kubectl wait -n %s %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
+				meta.Metadata.Namespace,
 				ExperimentsToCRDs[chaosType],
 				chaosFilenameParts[0],
 				DefaultCMDTimeout,
@@ -590,60 +845,27 @@ func ApplyChaosFile(dir string, chaosType string, expName string, wait bool) err
 }
 
 // GenerateSpecs generates specs from namespace, should be used programmatically in tests
-func GenerateSpecs(ns string, dir string, cfg *Config) error {
-	InitDefaultLogging()
-	podsInfo, err := GetPodsInfo(ns, cfg)
+func (m *Controller) GenerateSpecs(ns string) error {
+	podsInfo, err := m.GetPodsInfo(ns)
 	if err != nil {
 		return err
 	}
-	_, _, err = generateSpecs(ns, dir, podsInfo, cfg)
+	_, _, err = m.generateSpecs(ns, podsInfo)
 	return err
 }
 
-func generateSpecs(namespace string, dir string, podListResponse *PodsListResponse, cfg *Config) (*ChaosSpecs, []*ActionablePodInfo, error) {
-	if cfg == nil {
-		cfg = DefaultConfig()
-	}
+func (m *Controller) generateSpecs(namespace string, podListResponse *PodsListResponse) (*ChaosSpecs, []*ActionablePodInfo, error) {
 	L.Trace().
 		Interface("PodListResponse", podListResponse).
-		Msg("Deployments manifest from the cluster")
-	podInfo, groupLabels := processPodInfo(podListResponse)
-	podFailures, err := generatePodFailureExperiments(namespace, podInfo, cfg)
+		Msg("Found pods")
+	podInfo, groupLabels, npLabels, err := m.processPodInfo(m.cfg, podListResponse)
 	if err != nil {
 		return nil, nil, err
 	}
-	podFailureGroups, err := generatePodFailureGroupExperiments(namespace, groupLabels, cfg)
+	L.Info().Msg("Generating chaos experiments")
+	csp, err := m.generate(namespace, podInfo, groupLabels, npLabels)
 	if err != nil {
 		return nil, nil, err
 	}
-	podLatencies, err := generatePodLatenciesExperiments(namespace, podInfo, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	podLatenciesGroup, err := generatePodLatencyGroupExperiments(namespace, groupLabels, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	podMem, err := generatePodStressMemoryExperiments(namespace, podInfo, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	podCPU, err := generatePodStressCPUExperiments(namespace, podInfo, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	partExt, err := generateExternalTargetsPartitions(namespace, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-	csp := &ChaosSpecs{
-		PodFailures:                podFailures,
-		PodFailureGroups:           podFailureGroups,
-		PodLatencies:               podLatencies,
-		PodLatencyGroups:           podLatenciesGroup,
-		PodStressMemory:            podMem,
-		PodStressCPU:               podCPU,
-		NamespacePartitionExternal: partExt,
-	}
-	return csp, podInfo, csp.Dump(dir)
+	return csp, podInfo, csp.Dump(m.cfg.Havoc.Dir)
 }

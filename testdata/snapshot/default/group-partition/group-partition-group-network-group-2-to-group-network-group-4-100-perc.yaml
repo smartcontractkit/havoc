@@ -1,0 +1,25 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: group-partition-group-network-group-2-to-group-network-group-4-100-perc
+  namespace: cl-cluster
+spec:
+  selector:
+    namespaces:
+      - cl-cluster
+    labelSelectors:
+      'group': 'network-group-2'
+  action: partition
+  mode: fixed-percent
+  value: '100'
+  duration: 30s
+  direction: from
+  target:
+    mode: fixed-percent
+    value: '100'
+    selector:
+      namespaces:
+        - cl-cluster
+      labelSelectors:
+        'group': 'network-group-4'

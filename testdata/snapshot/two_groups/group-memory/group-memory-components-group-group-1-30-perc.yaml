@@ -1,0 +1,17 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: group-memory-components-group-group-1-30-perc
+  namespace: cl-cluster
+spec:
+  mode: fixed-percent
+  value: '30'
+  duration: 1m
+  selector:
+    labelSelectors:
+      'components-group': 'group-1'
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

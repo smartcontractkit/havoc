@@ -1,0 +1,14 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: group-failure-app-app-20-perc
+  namespace: cl-cluster
+spec:
+  action: pod-failure
+  mode: fixed-percent
+  value: '20'
+  duration: 10s
+  selector:
+    labelSelectors:
+      'app': 'app'

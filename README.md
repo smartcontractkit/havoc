@@ -49,7 +49,7 @@ Generate default experiments for your namespace
 ```
 havoc generate [namespace]
 or with a custom config
-havoc -c havoc_short.toml generate [namespace]
+havoc -c havoc.toml generate [namespace]
 ```
 
 This will create `experiments` dir, then you can choose from recommended experiments
@@ -61,7 +61,7 @@ havoc apply {failure, latency, memory, cpu, external, group-failure, group-laten
 ### Monkey mode
 You can run havoc as an automated sequential or randomized suite
 ```
-havoc -c havoc_short.toml run [namespace]
+havoc -c havoc.toml run [namespace]
 ```
 See `[havoc.monkey]` config [here](havoc.toml)
 

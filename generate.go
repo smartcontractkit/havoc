@@ -607,7 +607,7 @@ func generateSpecs(namespace string, dir string, podListResponse *PodsListRespon
 	L.Trace().
 		Interface("PodListResponse", podListResponse).
 		Msg("Deployments manifest from the cluster")
-	podInfo, groupLabels := processPodInfo(podListResponse)
+	podInfo, groupLabels := processPodInfo(cfg, podListResponse)
 	podFailures, err := generatePodFailureExperiments(namespace, podInfo, cfg)
 	if err != nil {
 		return nil, nil, err

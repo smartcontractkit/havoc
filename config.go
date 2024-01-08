@@ -37,13 +37,14 @@ type Config struct {
 }
 
 type Havoc struct {
-	IgnoredPods     []string         `toml:"ignore_pods"`
-	Failure         *Failure         `toml:"failure"`
-	Latency         *Latency         `toml:"latency"`
-	StressMemory    *StressMemory    `toml:"stress_memory"`
-	StressCPU       *StressCPU       `toml:"stress_cpu"`
-	ExternalTargets *ExternalTargets `toml:"external_targets"`
-	Monkey          *Monkey          `toml:"monkey"`
+	IgnoredPods       []string         `toml:"ignore_pods"`
+	IgnoreGroupLabels []string         `toml:"ignore_group_labels"`
+	Failure           *Failure         `toml:"failure"`
+	Latency           *Latency         `toml:"latency"`
+	StressMemory      *StressMemory    `toml:"stress_memory"`
+	StressCPU         *StressCPU       `toml:"stress_cpu"`
+	ExternalTargets   *ExternalTargets `toml:"external_targets"`
+	Monkey            *Monkey          `toml:"monkey"`
 }
 
 func DefaultConfig() *Config {

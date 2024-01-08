@@ -40,7 +40,7 @@ type ActionablePodInfo struct {
 
 // groupLabels generates an array of labels which are present on more than one pod
 // returns these labels and counts of how many pods are in the group
-func groupLabels(input []string) ([]string, map[string]int) {
+func groupLabels(cfg *Config, input []string) ([]string, map[string]int) {
 	counts := make(map[string]int)
 	seen := make(map[string]bool)
 	for _, ld := range input {
@@ -50,7 +50,9 @@ func groupLabels(input []string) ([]string, map[string]int) {
 	for _, ld := range input {
 		if counts[ld] > 1 && !seen[ld] {
 			seen[ld] = true
-			groupLabels = append(groupLabels, ld)
+			if len(cfg.Havoc.IgnoreGroupLabels) > 0 && !sliceContainsSubString(ld, cfg.Havoc.IgnoreGroupLabels) {
+				groupLabels = append(groupLabels, ld)
+			}
 		}
 	}
 	return groupLabels, counts
@@ -59,7 +61,7 @@ func groupLabels(input []string) ([]string, map[string]int) {
 // processPodInfo parses pods call response and returns:
 // pods with all associated labels
 // group labels and count of pods affected
-func processPodInfo(mfp *PodsListResponse) ([]*ActionablePodInfo, []string) {
+func processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, []string) {
 	L.Info().Msg("Processing pods info")
 	allPodsDataWithLabels := make([]*ActionablePodInfo, 0)
 	onlyLabels := make([]string, 0)
@@ -73,7 +75,7 @@ func processPodInfo(mfp *PodsListResponse) ([]*ActionablePodInfo, []string) {
 		allPodsDataWithLabels = append(allPodsDataWithLabels, api)
 		onlyLabels = append(onlyLabels, api.Labels...)
 	}
-	gl, glCounts := groupLabels(onlyLabels)
+	gl, glCounts := groupLabels(cfg, onlyLabels)
 	sort.Slice(gl, func(i, j int) bool {
 		return gl[i] < gl[j]
 	})

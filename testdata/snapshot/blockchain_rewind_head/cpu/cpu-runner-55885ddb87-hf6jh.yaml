@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-runner-55885ddb87-hf6jh
+  namespace: cl-cluster
+spec:
+  mode: one
+  duration: 10s
+  selector:
+    fieldSelectors:
+      metadata.name: runner-55885ddb87-hf6jh
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

@@ -1,0 +1,14 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: group-failure-app-app-1-fixed
+  namespace: cl-cluster
+spec:
+  action: pod-failure
+  mode: fixed
+  value: '1'
+  duration: 10s
+  selector:
+    labelSelectors:
+      'app': 'app'

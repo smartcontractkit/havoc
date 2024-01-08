@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-geth-55b64cdf59-rxmxt
+  namespace: cl-cluster
+spec:
+  mode: one
+  duration: 10s
+  selector:
+    fieldSelectors:
+      metadata.name: geth-55b64cdf59-rxmxt
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

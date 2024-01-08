@@ -1,0 +1,25 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: latency-geth-55b64cdf59-rxmxt
+  namespace: cl-cluster
+spec:
+  selector:
+    namespaces:
+      - cl-cluster
+    fieldSelectors:
+      metadata.name: geth-55b64cdf59-rxmxt
+  mode: one
+  action: delay
+  duration: 10s
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - cl-cluster
+      fieldSelectors:
+        metadata.name: geth-55b64cdf59-rxmxt
+    mode: one

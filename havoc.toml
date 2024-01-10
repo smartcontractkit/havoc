@@ -1,6 +1,6 @@
 [havoc]
 # dir is a custom dir you can select, if null monkey will create a new dir
-dir = "my-havoc-experiments"
+dir = "havoc-experiments"
 # pods with this prefix will be ignored when generating experiments
 ignore_pods = ["geth", "mockserver", "-db-"]
 # group labels containing these strings will be ignored when generating group experiments

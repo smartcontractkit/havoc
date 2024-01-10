@@ -28,34 +28,33 @@ Group experiments:
 
 You can generate default chaos suite by [configuring](havoc.toml) havoc then set `dir` param and add your custom experiments, then run monkey to test your services
 
-### Setup
-
-We are using [nix](https://nixos.org/)
-
-Enter the shell
-
-```
-nix develop
-```
-
-### Install as a binary
+### Install
 
 Please use GitHub releases of this repo
+Download latest [release](https://github.com/smartcontractkit/havoc/releases)
+
+If you wish Grafana integration, please set env variables (optional)
+```
+HAVOC_LOG_LEVEL={warn,info,debug,trace}
+GRAFANA_URL="..."
+GRAFANA_TOKEN="..."
+DASHBOARD_NAME="..."
+```
 
 ### Manual usage
 
 Generate default experiments for your namespace
 
 ```
-havoc generate [namespace]
-or with a custom config
 havoc -c havoc.toml generate [namespace]
 ```
 
-This will create `experiments` dir, then you can choose from recommended experiments
+Check this [section](havoc.toml) for `ignore_pods` and `ignore_group_labels`, default settings should be reasonable, however, you can tweak them
+
+This will create `havoc-experiments` dir, then you can choose from recommended experiments
 
 ```
-havoc apply {failure, latency, memory, cpu, external, group-failure, group-latency}
+havoc -c havoc.toml apply
 ```
 
 ### Monkey mode
@@ -69,11 +68,12 @@ See `[havoc.monkey]` config [here](havoc.toml)
 
 See how you can use recommended experiments from code in [examples](examples)
 
-### Environment variables
-You need to set the last three in order to run monkey mode
+### Developing
+
+We are using [nix](https://nixos.org/)
+
+Enter the shell
+
 ```
-HAVOC_LOG_LEVEL={warn,info,debug,trace}
-GRAFANA_URL="..."
-GRAFANA_TOKEN="..."
-DASHBOARD_NAME="..."
+nix develop
 ```

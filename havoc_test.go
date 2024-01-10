@@ -12,7 +12,7 @@ const (
 	TestExperimentsDir = "testdata/experiments-test"
 )
 
-func TestSmokeParsingGeneratingEndToEnd(t *testing.T) {
+func TestSmokeParsingGenerating(t *testing.T) {
 	InitDefaultLogging()
 	d, err := os.ReadFile("testdata/deployment_crib_1.yaml")
 	require.NoError(t, err)
@@ -21,6 +21,7 @@ func TestSmokeParsingGeneratingEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	m, err := NewController(nil)
 	require.NoError(t, err)
+	// namespace doesn't matter here, we are checking that generated files are valid
 	_, _, err = m.generateSpecs("my-test-namespace", depls)
 	require.NoError(t, err)
 	snapshotData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, SnapshotDir)

@@ -32,6 +32,24 @@ const (
 	DefaultNetworkLatency         = "500ms"
 )
 
+var (
+	DefaultIgnoreGroupLabels = []string{
+		"release",
+		"intents.otterize.com",
+		"pod-template-hash",
+		"rollouts-pod-template-hash",
+		"chain.link/app",
+		"chain.link/cost-center",
+		"chain.link/env",
+		"chain.link/project",
+		"chain.link/team",
+		"app.kubernetes.io/part-of",
+		"app.kubernetes.io/managed-by",
+		//"app.kubernetes.io/name",
+		//"app.kubernetes.io/instance",
+	}
+)
+
 type Config struct {
 	Havoc *Havoc `toml:"havoc"`
 }
@@ -52,7 +70,8 @@ type Havoc struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Havoc: &Havoc{
-			Dir: DefaultExperimentsDir,
+			Dir:               DefaultExperimentsDir,
+			IgnoreGroupLabels: DefaultIgnoreGroupLabels,
 			Failure: &Failure{
 				Duration:        DefaultPodFailureDuration,
 				GroupPercentage: DefaultGroupPercentage,

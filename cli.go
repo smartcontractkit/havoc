@@ -51,7 +51,7 @@ func experimentTypeCompleter(dir string) (func(d prompt.Document) []prompt.Sugge
 			if err != nil {
 				return err
 			}
-			if info.IsDir() {
+			if info.IsDir() && info.Name() != dir {
 				s = append(s, prompt.Suggest{
 					Text:        info.Name(),
 					Description: info.Name(),

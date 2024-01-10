@@ -1,10 +1,25 @@
 [havoc]
 # dir is a custom dir you can select, if null monkey will create a new dir
-dir = "havoc-experiments"
+dir = "havoc-experiments-custom"
 # pods with this prefix will be ignored when generating experiments
 ignore_pods = ["geth", "mockserver", "-db-"]
 # group labels containing these strings will be ignored when generating group experiments
-ignore_group_labels = ["release"]
+ignore_group_labels = [
+    "mainnet",
+    "release",
+    "intents.otterize.com",
+    "pod-template-hash",
+    "rollouts-pod-template-hash",
+    "chain.link/app",
+    "chain.link/cost-center",
+    "chain.link/env",
+    "chain.link/project",
+    "chain.link/team",
+    "app.kubernetes.io/part-of",
+    "app.kubernetes.io/managed-by",
+#    "app.kubernetes.io/instance",
+#    "app.kubernetes.io/name",
+]
 # mercury
 #ignore_pods = ["mainnet"]
 #ignore_group_labels = ["mainnet", "pod-template-hash", "intents.otterize.com", "app.kubernetes.io/name", "'chain.link/team", "'chain.link/project", "chain.link/env", "chain.link/cost-center"]

@@ -191,17 +191,19 @@ func (m *Controller) Run() error {
 	return nil
 }
 
-func (m *Controller) Stop() {
+func (m *Controller) Stop() []error {
 	L.Info().Msg("Stopping chaos monkey")
 	m.cancel()
 	m.wg.Wait()
 	L.Info().Errs("Errors", m.errors).Msg("Chaos monkey stopped")
+	return m.errors
 }
 
-func (m *Controller) Wait() {
+func (m *Controller) Wait() []error {
 	L.Info().Msg("Waiting for chaos monkey to finish")
 	m.wg.Wait()
 	L.Info().Errs("Errors", m.errors).Msg("Chaos monkey finished")
+	return m.errors
 }
 
 func pickExperiment(r *rand.Rand, s []*NamedExperiment) *NamedExperiment {

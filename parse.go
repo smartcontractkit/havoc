@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	ErrNoNamespace = "no namespace found"
+	ErrNoNamespace    = "no namespace found"
+	ErrEmptyNamespace = "no pods found inside namespace, namespace is empty?"
 )
 
 type ManifestPart struct {
@@ -112,6 +113,9 @@ func (m *Controller) GetPodsInfo(namespace string) (*PodsListResponse, error) {
 			}
 		}
 		pr.Items = validItems
+	}
+	if len(pr.Items) == 0 {
+		return pr, errors.New(ErrEmptyNamespace)
 	}
 	return pr, nil
 }

@@ -5,43 +5,42 @@ import (
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestUsingRecommendedExperiments(t *testing.T) {
-	myExperimentsDir := "my-experiments"
-	// config can be nil, then default will be used, that's just an example
-	err := havoc.GenerateSpecs(
-		"my-namespace",
-		myExperimentsDir,
-		&havoc.Config{
-			Havoc: &havoc.Havoc{
-				Failure: &havoc.Failure{
-					Duration: "1m",
-				},
-				Latency: &havoc.Latency{
-					Duration: "1m",
-					Latency:  "300ms",
-				},
-				StressMemory: &havoc.StressMemory{
-					Duration: "1m",
-					Workers:  4,
-					Memory:   "512MB",
-				},
-				StressCPU: &havoc.StressCPU{
-					Duration: "1m",
-					Workers:  1,
-					Load:     100,
-				},
+	cfg := &havoc.Config{
+		Havoc: &havoc.Havoc{
+			Dir: "my-experiments",
+			Failure: &havoc.Failure{
+				Duration: "1m",
+			},
+			Latency: &havoc.Latency{
+				Duration: "1m",
+				Latency:  "300ms",
+			},
+			StressMemory: &havoc.StressMemory{
+				Duration: "1m",
+				Workers:  4,
+				Memory:   "512MB",
+			},
+			StressCPU: &havoc.StressCPU{
+				Duration: "1m",
+				Workers:  1,
+				Load:     100,
 			},
 		},
-	)
+	}
+	c, err := havoc.NewController(cfg)
+	require.NoError(t, err)
+	err = c.GenerateSpecs("skudasov-crib")
+	require.NoError(t, err)
 	/*
 		your test logic here
 	*/
+	err = c.ApplyChaosFile("failure", "app-node-3.yaml", true)
 	require.NoError(t, err)
-	err = havoc.ApplyChaosFile(myExperimentsDir, "failure", "app-node-3.yaml", true)
-	require.NoError(t, err)
-	err = havoc.ApplyChaosFile(myExperimentsDir, "latency", "app-node-3.yaml", true)
+	err = c.ApplyChaosFile("latency", "app-node-3.yaml", true)
 	require.NoError(t, err)
 	/*
 		your verification logic here
@@ -51,6 +50,7 @@ func TestUsingRecommendedExperiments(t *testing.T) {
 func TestGenerating(t *testing.T) {
 	cfg := &havoc.Config{
 		Havoc: &havoc.Havoc{
+			Dir:         "my-experiments",
 			IgnoredPods: []string{"geth", "mockserver", "-db-"},
 			Failure: &havoc.Failure{
 				Duration:        "5s",
@@ -73,19 +73,17 @@ func TestGenerating(t *testing.T) {
 			},
 		},
 	}
-	err := havoc.GenerateSpecs(
-		"skudasov-crib",
-		"test-generating-dir",
-		cfg,
-	)
+	c, err := havoc.NewController(cfg)
+	require.NoError(t, err)
+	err = c.GenerateSpecs("skudasov-crib")
 	require.NoError(t, err)
 }
 
-func TestUsingSequentialMonkey(t *testing.T) {
+func TestCommonIntegrationWithLoadTool(t *testing.T) {
 	//havoc.SetGlobalLogger(your zerolog here...)
-	myExperimentsDir := "sequential-monkey"
 	cfg := &havoc.Config{
 		Havoc: &havoc.Havoc{
+			Dir: "my-experiments",
 			Failure: &havoc.Failure{
 				Duration:        "5s",
 				GroupPercentage: "0.3",
@@ -108,24 +106,25 @@ func TestUsingSequentialMonkey(t *testing.T) {
 			Monkey: &havoc.Monkey{
 				Duration:                "7m",
 				Cooldown:                "10s",
-				Dir:                     myExperimentsDir,
 				Mode:                    "seq",
 				MaxSimultaneousFailures: 2,
-				GrafanaURL:              os.Getenv("GRAFANA_URL"),
-				GrafanaToken:            os.Getenv("GRAFANA_TOKEN"),
-				DashboardName:           os.Getenv("DASHBOARD_NAME"),
+			},
+			Grafana: &havoc.Grafana{
+				URL:           os.Getenv("GRAFANA_URL"),
+				Token:         os.Getenv("GRAFANA_TOKEN"),
+				DashboardName: os.Getenv("DASHBOARD_NAME"),
 			},
 		},
 	}
 
-	err := havoc.GenerateSpecs(
-		"skudasov-crib",
-		myExperimentsDir,
-		cfg,
-	)
+	m, err := havoc.NewController(cfg)
 	require.NoError(t, err)
-	m, err := havoc.NewMonkey(cfg)
+	err = m.GenerateSpecs("skudasov-crib")
 	require.NoError(t, err)
-	err = m.Run(nil)
-	require.NoError(t, err)
+	go func() {
+		err = m.Run()
+		require.NoError(t, err)
+	}()
+	time.Sleep(1 * time.Minute)
+	m.Stop()
 }

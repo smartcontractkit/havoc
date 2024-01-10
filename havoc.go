@@ -63,6 +63,7 @@ func (m *ChaosSpecs) Dump(dir string) error {
 	if err := os.Mkdir(dir, os.ModePerm); err != nil {
 		return err
 	}
+	L.Info().Str("Dir", dir).Msg("Writing experiments to a dir")
 	if err := os.Mkdir(fmt.Sprintf("%s/%s", dir, ChaosTypeFailure), os.ModePerm); err != nil {
 		return err
 	}

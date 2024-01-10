@@ -1,8 +1,13 @@
 [havoc]
+# dir is a custom dir you can select, if null monkey will create a new dir
+dir = "my-havoc-experiments"
 # pods with this prefix will be ignored when generating experiments
 ignore_pods = ["geth", "mockserver", "-db-"]
 # group labels containing these strings will be ignored when generating group experiments
 ignore_group_labels = ["release"]
+# mercury
+#ignore_pods = ["mainnet"]
+#ignore_group_labels = ["mainnet", "pod-template-hash", "intents.otterize.com", "app.kubernetes.io/name", "'chain.link/team", "'chain.link/project", "chain.link/env", "chain.link/cost-center"]
 [havoc.failure]
 # duration of a "failure" experiment
 duration = "10s"
@@ -47,10 +52,8 @@ urls = ["www.google.com"]
 # havoc monkey mode:
 # seq - runs all experiments from all dirs sequentially one time
 # rand - runs random experiments from all dirs
-mode = "seq"
+mode = "rand"
 # duration of havoc monkey
 duration = "3m"
-# dir is a custom dir you can select, if null monkey will create a new dir
-#dir = "custom-experiments"
 # cooldown between experiments
 cooldown = "10s"

@@ -289,7 +289,7 @@ type NamedExperiment struct {
 	Manifest string
 }
 
-func ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, error) {
+func (m *Controller) ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, error) {
 	expData := make([]*NamedExperiment, 0)
 	for _, expType := range expTypes {
 		targetDir := fmt.Sprintf("%s/%s", dir, expType)
@@ -326,8 +326,8 @@ func ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, 
 	return expData, nil
 }
 
-func generatePodFailureExperiments(namespace string, podInfo []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodFailureExperiments(namespace string, podInfo []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, pi := range podInfo {
 		ph, err := PodFailureExperiment{
 			Namespace:      namespace,
@@ -339,13 +339,13 @@ func generatePodFailureExperiments(namespace string, podInfo []*ActionablePodInf
 		if err != nil {
 			return nil, err
 		}
-		m[pi.PodName] = ph
+		ma[pi.PodName] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generatePodFailureGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodFailureGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, label := range groupLabels {
 		sanitizedLabel := sanitizeLabel(label)
 		ph, err := PodFailureExperiment{
@@ -359,13 +359,13 @@ func generatePodFailureGroupExperiments(namespace string, groupLabels []string, 
 		if err != nil {
 			return nil, err
 		}
-		m[sanitizedLabel] = ph
+		ma[sanitizedLabel] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generatePodLatenciesExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodLatenciesExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, mfp := range lfd {
 		pl, err := NetworkChaosExperiment{
 			Namespace:      namespace,
@@ -378,13 +378,13 @@ func generatePodLatenciesExperiments(namespace string, lfd []*ActionablePodInfo,
 		if err != nil {
 			return nil, err
 		}
-		m[mfp.PodName] = pl
+		ma[mfp.PodName] = pl
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generatePodLatencyGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodLatencyGroupExperiments(namespace string, groupLabels []string, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, label := range groupLabels {
 		sanitizedLabel := sanitizeLabel(label)
 		ph, err := NetworkChaosExperiment{
@@ -399,13 +399,13 @@ func generatePodLatencyGroupExperiments(namespace string, groupLabels []string, 
 		if err != nil {
 			return nil, err
 		}
-		m[sanitizedLabel] = ph
+		ma[sanitizedLabel] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generatePodStressMemoryExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodStressMemoryExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, mfp := range lfd {
 		ph, err := PodStressMemoryExperiment{
 			Namespace:      namespace,
@@ -419,13 +419,13 @@ func generatePodStressMemoryExperiments(namespace string, lfd []*ActionablePodIn
 		if err != nil {
 			return nil, err
 		}
-		m[mfp.PodName] = ph
+		ma[mfp.PodName] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generatePodStressCPUExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generatePodStressCPUExperiments(namespace string, lfd []*ActionablePodInfo, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	for _, mfp := range lfd {
 		ph, err := PodStressCPUExperiment{
 			Namespace:      namespace,
@@ -439,13 +439,13 @@ func generatePodStressCPUExperiments(namespace string, lfd []*ActionablePodInfo,
 		if err != nil {
 			return nil, err
 		}
-		m[mfp.PodName] = ph
+		ma[mfp.PodName] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
-func generateExternalTargetsPartitions(namespace string, cfg *Config) (map[string]string, error) {
-	m := make(map[string]string)
+func (m *Controller) generateExternalTargetsPartitions(namespace string, cfg *Config) (map[string]string, error) {
+	ma := make(map[string]string)
 	if cfg.Havoc.ExternalTargets == nil {
 		return nil, nil
 	}
@@ -461,9 +461,9 @@ func generateExternalTargetsPartitions(namespace string, cfg *Config) (map[strin
 		if err != nil {
 			return nil, err
 		}
-		m[nsAndURLHash] = ph
+		ma[nsAndURLHash] = ph
 	}
-	return m, nil
+	return ma, nil
 }
 
 func urlHash(url string) string {
@@ -543,20 +543,20 @@ func eventsForLastMinutes(out string, timeOfApplication time.Time) error {
 	return nil
 }
 
-func ApplyChaosFile(dir string, chaosType string, expName string, wait bool) error {
+func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool) error {
 	timeOfApplication := time.Now()
 	var errDefer error
-	data, err := os.ReadFile(filepath.Join(dir, chaosType, expName))
+	data, err := os.ReadFile(filepath.Join(m.cfg.Havoc.Dir, chaosType, expName))
 	if err != nil {
 		return err
 	}
 	L.Info().
-		Str("Dir", dir).
+		Str("Dir", m.cfg.Havoc.Dir).
 		Str("Type", chaosType).
 		Str("Name", expName).
 		Msg("Applying experiment manifest")
 	fmt.Println(string(data))
-	_, err = ExecCmd(fmt.Sprintf("kubectl apply -f %s/%s/%s", dir, chaosType, expName))
+	_, err = ExecCmd(fmt.Sprintf("kubectl apply -f %s/%s/%s", m.cfg.Havoc.Dir, chaosType, expName))
 	if err != nil {
 		return errors.Wrap(err, ErrExperimentApply)
 	}
@@ -590,49 +590,47 @@ func ApplyChaosFile(dir string, chaosType string, expName string, wait bool) err
 }
 
 // GenerateSpecs generates specs from namespace, should be used programmatically in tests
-func GenerateSpecs(ns string, dir string, cfg *Config) error {
-	InitDefaultLogging()
-	podsInfo, err := GetPodsInfo(ns, cfg)
+func (m *Controller) GenerateSpecs(ns string) error {
+	podsInfo, err := m.GetPodsInfo(ns)
 	if err != nil {
 		return err
 	}
-	_, _, err = generateSpecs(ns, dir, podsInfo, cfg)
+	_, _, err = m.generateSpecs(ns, podsInfo)
 	return err
 }
 
-func generateSpecs(namespace string, dir string, podListResponse *PodsListResponse, cfg *Config) (*ChaosSpecs, []*ActionablePodInfo, error) {
-	if cfg == nil {
-		cfg = DefaultConfig()
-	}
+func (m *Controller) generateSpecs(namespace string, podListResponse *PodsListResponse) (*ChaosSpecs, []*ActionablePodInfo, error) {
 	L.Trace().
 		Interface("PodListResponse", podListResponse).
 		Msg("Deployments manifest from the cluster")
-	podInfo, groupLabels := processPodInfo(cfg, podListResponse)
-	podFailures, err := generatePodFailureExperiments(namespace, podInfo, cfg)
+	podInfo, groupLabels := m.processPodInfo(m.cfg, podListResponse)
+	L.Info().Msg("Generating chaos experiments")
+	podFailures, err := m.generatePodFailureExperiments(namespace, podInfo, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	podFailureGroups, err := generatePodFailureGroupExperiments(namespace, groupLabels, cfg)
+	podLatencies, err := m.generatePodLatenciesExperiments(namespace, podInfo, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	podLatencies, err := generatePodLatenciesExperiments(namespace, podInfo, cfg)
+	podMem, err := m.generatePodStressMemoryExperiments(namespace, podInfo, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	podLatenciesGroup, err := generatePodLatencyGroupExperiments(namespace, groupLabels, cfg)
+	podCPU, err := m.generatePodStressCPUExperiments(namespace, podInfo, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	podMem, err := generatePodStressMemoryExperiments(namespace, podInfo, cfg)
+	partExt, err := m.generateExternalTargetsPartitions(namespace, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	podCPU, err := generatePodStressCPUExperiments(namespace, podInfo, cfg)
+	L.Info().Msg("Generating group chaos experiments")
+	podFailureGroups, err := m.generatePodFailureGroupExperiments(namespace, groupLabels, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	partExt, err := generateExternalTargetsPartitions(namespace, cfg)
+	podLatenciesGroup, err := m.generatePodLatencyGroupExperiments(namespace, groupLabels, m.cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -645,5 +643,5 @@ func generateSpecs(namespace string, dir string, podListResponse *PodsListRespon
 		PodStressCPU:               podCPU,
 		NamespacePartitionExternal: partExt,
 	}
-	return csp, podInfo, csp.Dump(dir)
+	return csp, podInfo, csp.Dump(m.cfg.Havoc.Dir)
 }

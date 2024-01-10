@@ -19,11 +19,13 @@ func TestSmokeParsingGeneratingEndToEnd(t *testing.T) {
 	var depls *PodsListResponse
 	err = json.Unmarshal(d, &depls)
 	require.NoError(t, err)
-	_, _, err = generateSpecs("my-test-namespace", TestExperimentsDir, depls, nil)
+	m, err := NewController(nil)
 	require.NoError(t, err)
-	snapshotData, err := ReadExperimentsFromDir(RecommendedExperimentTypes, SnapshotDir)
+	_, _, err = m.generateSpecs("my-test-namespace", depls)
 	require.NoError(t, err)
-	generatedData, err := ReadExperimentsFromDir(RecommendedExperimentTypes, TestExperimentsDir)
+	snapshotData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, SnapshotDir)
+	require.NoError(t, err)
+	generatedData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, TestExperimentsDir)
 	require.NoError(t, err)
 	for i := range snapshotData {
 		require.Equal(t, snapshotData[i], generatedData[i])

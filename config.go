@@ -37,6 +37,7 @@ type Config struct {
 }
 
 type Havoc struct {
+	Dir               string           `toml:"dir"`
 	IgnoredPods       []string         `toml:"ignore_pods"`
 	IgnoreGroupLabels []string         `toml:"ignore_group_labels"`
 	Failure           *Failure         `toml:"failure"`
@@ -45,11 +46,13 @@ type Havoc struct {
 	StressCPU         *StressCPU       `toml:"stress_cpu"`
 	ExternalTargets   *ExternalTargets `toml:"external_targets"`
 	Monkey            *Monkey          `toml:"monkey"`
+	Grafana           *Grafana         `toml:"grafana"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Havoc: &Havoc{
+			Dir: DefaultExperimentsDir,
 			Failure: &Failure{
 				Duration:        DefaultPodFailureDuration,
 				GroupPercentage: DefaultGroupPercentage,
@@ -70,13 +73,15 @@ func DefaultConfig() *Config {
 				Load:     DefaultStressCPULoad,
 			},
 			Monkey: &Monkey{
-				Duration:                "1h",
+				Duration:                "999h",
 				Mode:                    "seq",
 				Cooldown:                "30s",
 				MaxSimultaneousFailures: 1,
-				GrafanaURL:              os.Getenv("GRAFANA_URL"),
-				GrafanaToken:            os.Getenv("GRAFANA_TOKEN"),
-				DashboardName:           os.Getenv("DASHBOARD_NAME"),
+			},
+			Grafana: &Grafana{
+				URL:           os.Getenv("GRAFANA_URL"),
+				Token:         os.Getenv("GRAFANA_TOKEN"),
+				DashboardName: os.Getenv("DASHBOARD_NAME"),
 			},
 		},
 	}
@@ -84,6 +89,9 @@ func DefaultConfig() *Config {
 
 func (c *Config) Validate() []error {
 	errs := make([]error, 0)
+	if c.Havoc.Dir == "" {
+		errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.dir must not be empty"))
+	}
 	if c.Havoc.Failure == nil {
 		errs = append(errs, errors.New(ErrFailureGroupIsNil))
 	}
@@ -126,9 +134,6 @@ func (c *Config) Validate() []error {
 		}
 	}
 	if c.Havoc.Monkey != nil {
-		if c.Havoc.Monkey.Dir == "" {
-			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.dir must not be empty"))
-		}
 		if c.Havoc.Monkey.Mode == "" {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.mode must be either \"seq\" or \"rand\""))
 		}
@@ -173,12 +178,14 @@ type ExternalTargets struct {
 type Monkey struct {
 	Duration                string `toml:"duration"`
 	Cooldown                string `toml:"cooldown"`
-	Dir                     string `toml:"dir"`
 	Mode                    string `toml:"mode"`
 	MaxSimultaneousFailures int    `toml:"max_simultaneous_failures"`
-	GrafanaURL              string `toml:"grafana_url"`
-	GrafanaToken            string `toml:"grafana_token"`
-	DashboardName           string `toml:"dashboard_name"`
+}
+
+type Grafana struct {
+	URL           string `toml:"grafana_url"`
+	Token         string `toml:"grafana_token"`
+	DashboardName string `toml:"dashboard_name"`
 }
 
 func ReadConfig(path string) (*Config, error) {
@@ -201,12 +208,13 @@ func ReadConfig(path string) (*Config, error) {
 	L.Info().
 		Interface("Config", cfg).
 		Msg("Configuration loaded")
-	cfg.Havoc.Monkey.GrafanaURL = os.Getenv("GRAFANA_URL")
-	cfg.Havoc.Monkey.GrafanaToken = os.Getenv("GRAFANA_TOKEN")
-	cfg.Havoc.Monkey.DashboardName = os.Getenv("DASHBOARD_NAME")
+	cfg.Havoc.Grafana.URL = os.Getenv("GRAFANA_URL")
+	cfg.Havoc.Grafana.Token = os.Getenv("GRAFANA_TOKEN")
+	cfg.Havoc.Grafana.DashboardName = os.Getenv("DASHBOARD_NAME")
 	return cfg, nil
 }
 
+// nolint
 func sliceContains(target string, array []string) bool {
 	for _, element := range array {
 		if element == target {

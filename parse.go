@@ -40,7 +40,7 @@ type ActionablePodInfo struct {
 
 // groupLabels generates an array of labels which are present on more than one pod
 // returns these labels and counts of how many pods are in the group
-func groupLabels(cfg *Config, input []string) ([]string, map[string]int) {
+func (m *Controller) groupLabels(cfg *Config, input []string) ([]string, map[string]int) {
 	counts := make(map[string]int)
 	seen := make(map[string]bool)
 	for _, ld := range input {
@@ -61,7 +61,7 @@ func groupLabels(cfg *Config, input []string) ([]string, map[string]int) {
 // processPodInfo parses pods call response and returns:
 // pods with all associated labels
 // group labels and count of pods affected
-func processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, []string) {
+func (m *Controller) processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, []string) {
 	L.Info().Msg("Processing pods info")
 	allPodsDataWithLabels := make([]*ActionablePodInfo, 0)
 	onlyLabels := make([]string, 0)
@@ -75,7 +75,7 @@ func processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, [
 		allPodsDataWithLabels = append(allPodsDataWithLabels, api)
 		onlyLabels = append(onlyLabels, api.Labels...)
 	}
-	gl, glCounts := groupLabels(cfg, onlyLabels)
+	gl, glCounts := m.groupLabels(cfg, onlyLabels)
 	sort.Slice(gl, func(i, j int) bool {
 		return gl[i] < gl[j]
 	})
@@ -92,7 +92,7 @@ func processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, [
 }
 
 // GetPodsInfo gets info about all the pods in the namespace
-func GetPodsInfo(namespace string, cfg *Config) (*PodsListResponse, error) {
+func (m *Controller) GetPodsInfo(namespace string) (*PodsListResponse, error) {
 	if _, err := ExecCmd(fmt.Sprintf("kubectl get ns %s", namespace)); err != nil {
 		return nil, errors.Wrap(errors.New(ErrNoNamespace), namespace)
 	}
@@ -104,10 +104,10 @@ func GetPodsInfo(namespace string, cfg *Config) (*PodsListResponse, error) {
 	if err := json.Unmarshal([]byte(out), &pr); err != nil {
 		return nil, err
 	}
-	if len(cfg.Havoc.IgnoredPods) > 0 {
+	if len(m.cfg.Havoc.IgnoredPods) > 0 {
 		validItems := make([]*PodResponse, 0)
 		for _, pi := range pr.Items {
-			if !sliceContainsSubString(pi.Metadata.Name, cfg.Havoc.IgnoredPods) {
+			if !sliceContainsSubString(pi.Metadata.Name, m.cfg.Havoc.IgnoredPods) {
 				validItems = append(validItems, pi)
 			}
 		}

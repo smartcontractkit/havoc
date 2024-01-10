@@ -193,7 +193,7 @@ func ReadConfig(path string) (*Config, error) {
 	if path == "" {
 		L.Info().Msg("No config specified, using default configuration")
 	} else {
-		L.Info().
+		L.Debug().
 			Str("Path", path).
 			Msg("Reading config from path")
 		d, err := os.ReadFile(path)
@@ -205,7 +205,7 @@ func ReadConfig(path string) (*Config, error) {
 			return nil, errors.Wrap(err, ErrUnmarshalSethConfig)
 		}
 	}
-	L.Info().
+	L.Debug().
 		Interface("Config", cfg).
 		Msg("Configuration loaded")
 	cfg.Havoc.Grafana.URL = os.Getenv("GRAFANA_URL")

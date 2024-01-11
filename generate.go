@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -20,13 +19,13 @@ import (
 const (
 	ErrParsingTemplate = "failed to parse Go text template"
 
-	ErrExperimentTimeout = "waiting for experiment to finish timed out"
-	ErrExperimentApply   = "error applying experiment manifest"
+	ErrExperimentTimeout   = "waiting for experiment to finish timed out"
+	ErrExperimentApply     = "error applying experiment manifest"
+	ErrEmptyExperimentsDir = "no experiments have been found, dir is empty, check 'experiment_types' setting in your config, they should match"
 )
 
 var (
 	RecommendedExperimentTypes = []string{
-		ChaosTypePartitionExternal,
 		ChaosTypeFailure,
 		ChaosTypeLatency,
 		ChaosTypeGroupFailure,
@@ -102,7 +101,10 @@ spec:
       fieldSelectors:
         metadata.name: {{ .PodName }}	
 	  {{- end}}
-    mode: all
+    mode: {{ .Mode }}
+    {{- if .ModeValue }}
+    value: '{{ .ModeValue }}'
+    {{- end }}
 `
 	return MarshalTemplate(
 		m,
@@ -292,10 +294,11 @@ func (m *Controller) ReadExperimentsFromDir(expTypes []string, dir string) ([]*N
 	for _, expType := range expTypes {
 		targetDir := fmt.Sprintf("%s/%s", dir, expType)
 		if _, err := os.Stat(targetDir); err != nil {
-			log.Warn().
-				Str("Dir", targetDir).
+			L.Warn().
+				Str("RootDir", dir).
+				Str("ExperimentTypeDir", targetDir).
 				Msg("Experiments dir not found, skipping")
-			return nil, nil
+			return nil, errors.New(ErrEmptyExperimentsDir)
 		}
 		err := filepath.Walk(
 			fmt.Sprintf("%s/%s", dir, expType),

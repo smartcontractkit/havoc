@@ -110,6 +110,7 @@ func (m *Controller) ApplyAndAnnotate(exp *NamedExperiment) error {
 }
 
 func (m *Controller) Run() error {
+	L.Info().Msg("Starting chaos monkey")
 	dur, err := time.ParseDuration(m.cfg.Havoc.Monkey.Duration)
 	if err != nil {
 		return err

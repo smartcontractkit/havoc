@@ -35,8 +35,8 @@ const (
 )
 
 var (
-	DefaultGroupPercentage = []string{"30", "20", "10"}
-	DefaultGroupFixed      = []string{"3", "2", "1"}
+	DefaultGroupPercentage = []string{"10", "20", "30"}
+	DefaultGroupFixed      = []string{"1", "2", "3"}
 )
 
 var (
@@ -87,15 +87,13 @@ func DefaultConfig() *Config {
 			ExperimentTypes:   RecommendedExperimentTypes,
 			IgnoreGroupLabels: DefaultIgnoreGroupLabels,
 			Failure: &Failure{
-				Duration:        DefaultPodFailureDuration,
-				GroupPercentage: DefaultGroupPercentage,
-				GroupFixed:      DefaultGroupFixed,
+				Duration:   DefaultPodFailureDuration,
+				GroupFixed: DefaultGroupFixed,
 			},
 			Latency: &Latency{
-				Duration:        DefaultNetworkLatencyDuration,
-				Latency:         DefaultNetworkLatency,
-				GroupPercentage: DefaultGroupPercentage,
-				GroupFixed:      DefaultGroupFixed,
+				Duration:   DefaultNetworkLatencyDuration,
+				Latency:    DefaultNetworkLatency,
+				GroupFixed: DefaultGroupFixed,
 			},
 			StressMemory: &StressMemory{
 				Duration: DefaultStressMemoryDuration,

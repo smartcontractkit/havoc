@@ -178,7 +178,6 @@ havoc run -c havoc.toml [namespace]
 						return err
 					}
 					if cfg.Havoc.Dir == DefaultExperimentsDir {
-						cfg.Havoc.Dir = "havoc-monkey-temp-dir"
 						err = m.GenerateSpecs(ns)
 						if err != nil {
 							return err

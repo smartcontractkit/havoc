@@ -26,13 +26,13 @@ const (
 
 var (
 	RecommendedExperimentTypes = []string{
+		ChaosTypePartitionExternal,
 		ChaosTypeFailure,
-		ChaosTypeGroupFailure,
 		ChaosTypeLatency,
+		ChaosTypeGroupFailure,
 		ChaosTypeGroupLatency,
 		ChaosTypeStressMemory,
 		ChaosTypeStressCPU,
-		ChaosTypePartitionExternal,
 	}
 )
 
@@ -424,7 +424,7 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 			for _, label := range groupLabels {
 				for _, groupModeValue := range m.cfg.Havoc.Failure.GroupPercentage {
 					sanitizedLabel := sanitizeLabel(label)
-					sanitizedLabel = fmt.Sprintf("%s-%s", sanitizedLabel, groupModeValue)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
 					ph, err := PodFailureExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
@@ -439,15 +439,15 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					}
 					ma[sanitizedLabel] = ph
 				}
-				for _, groupModeValue := range m.cfg.Havoc.Failure.GroupPercentage {
+				for _, groupModeValue := range m.cfg.Havoc.Failure.GroupFixed {
 					sanitizedLabel := sanitizeLabel(label)
-					sanitizedLabel = fmt.Sprintf("%s-%s", sanitizedLabel, groupModeValue)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
 					ph, err := PodFailureExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
 						WaitLabel:      sanitizedLabel,
 						Duration:       m.cfg.Havoc.Failure.Duration,
-						Mode:           "fixed-percent",
+						Mode:           "fixed",
 						ModeValue:      groupModeValue,
 						Selector:       label,
 					}.String()
@@ -461,14 +461,14 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 		case ChaosTypeGroupLatency:
 			ma := make(map[string]string)
 			for _, label := range groupLabels {
-				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupFixed {
+				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupPercentage {
 					sanitizedLabel := sanitizeLabel(label)
-					sanitizedLabel = fmt.Sprintf("%s-%s", sanitizedLabel, groupModeValue)
+					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
 					ph, err := NetworkChaosExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
 						WaitLabel:      sanitizedLabel,
-						Mode:           "fixed",
+						Mode:           "fixed-percent",
 						ModeValue:      groupModeValue,
 						Duration:       m.cfg.Havoc.Latency.Duration,
 						Latency:        m.cfg.Havoc.Latency.Latency,
@@ -479,14 +479,14 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					}
 					ma[sanitizedLabel] = ph
 				}
-				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupPercentage {
+				for _, groupModeValue := range m.cfg.Havoc.Latency.GroupFixed {
 					sanitizedLabel := sanitizeLabel(label)
-					sanitizedLabel = fmt.Sprintf("%s-%s", sanitizedLabel, groupModeValue)
+					sanitizedLabel = fmt.Sprintf("%s-%s-fixed", sanitizedLabel, groupModeValue)
 					ph, err := NetworkChaosExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
 						WaitLabel:      sanitizedLabel,
-						Mode:           "fixed-percent",
+						Mode:           "fixed",
 						ModeValue:      groupModeValue,
 						Duration:       m.cfg.Havoc.Latency.Duration,
 						Latency:        m.cfg.Havoc.Latency.Latency,

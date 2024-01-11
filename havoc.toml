@@ -21,9 +21,9 @@ ignore_group_labels = [
     "app.kubernetes.io/managed-by",
     "app.chain.link/product",
     "app.kubernetes.io/version",
-    "app.chain.link/blockchain"
-#    "app.kubernetes.io/instance",
-#    "app.kubernetes.io/name",
+    "app.chain.link/blockchain",
+    "app.kubernetes.io/instance",
+    "app.kubernetes.io/name",
 ]
 # these are experiment types you'd like to generate, it also defines an order of execution in seq mode
 experiment_types = ["external", "failure", "latency", "cpu", "memory", "group-failure", "group-latency"]
@@ -51,8 +51,6 @@ duration = "10s"
 workers = 1
 # total amount of memory occupied
 memory = "512MB"
-# percentage of pods experiments affect in groups, see group-failure key and dir when generated
-group_percentage = "30"
 
 [havoc.stress_cpu]
 # duration of "stress" experiment affecting pod CPU
@@ -61,8 +59,6 @@ duration = "10s"
 workers = 1
 # amount of CPU core utilization, 100 means 1 worker will consume 1 cpu, 2 workers + 100 load = 2 CPUs
 load = 100
-# percentage of pods experiments affect in groups, see group-failure key and dir when generated
-group_percentage = "30"
 
 [havoc.external_targets]
 # duration of "external" experiment

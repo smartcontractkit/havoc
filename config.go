@@ -28,7 +28,10 @@ const (
 	DefaultStressCPUDuration      = "1m"
 	DefaultStressCPUWorkers       = 1
 	DefaultStressCPULoad          = 100
-	DefaultNetworkLatency         = "500ms"
+	DefaultNetworkLatency         = "300ms"
+	DefaultMonkeyDuration         = "24h"
+	DefaultMonkeyMode             = "seq"
+	DefaultMonkeyCooldown         = "30s"
 )
 
 var (
@@ -38,6 +41,7 @@ var (
 
 var (
 	DefaultIgnoreGroupLabels = []string{
+		"mainnet",
 		"release",
 		"intents.otterize.com",
 		"pod-template-hash",
@@ -49,8 +53,11 @@ var (
 		"chain.link/team",
 		"app.kubernetes.io/part-of",
 		"app.kubernetes.io/managed-by",
-		//"app.kubernetes.io/name",
-		//"app.kubernetes.io/instance",
+		"app.chain.link/product",
+		"app.kubernetes.io/version",
+		"app.chain.link/blockchain",
+		"app.kubernetes.io/instance",
+		"app.kubernetes.io/name",
 	}
 )
 
@@ -101,10 +108,9 @@ func DefaultConfig() *Config {
 				Load:     DefaultStressCPULoad,
 			},
 			Monkey: &Monkey{
-				Duration:                "999h",
-				Mode:                    "seq",
-				Cooldown:                "30s",
-				MaxSimultaneousFailures: 1,
+				Duration: DefaultMonkeyDuration,
+				Mode:     DefaultMonkeyMode,
+				Cooldown: DefaultMonkeyCooldown,
 			},
 			Grafana: &Grafana{
 				URL:           os.Getenv("GRAFANA_URL"),
@@ -168,9 +174,6 @@ func (c *Config) Validate() []error {
 		if c.Havoc.Monkey.Duration == "" {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.duration must be in Go duration format, 1d2h3m0s"))
 		}
-		if c.Havoc.Monkey.MaxSimultaneousFailures < 0 {
-			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.max_simultaneous_failures must be > 0"))
-		}
 	}
 	return errs
 }
@@ -206,10 +209,9 @@ type ExternalTargets struct {
 }
 
 type Monkey struct {
-	Duration                string `toml:"duration"`
-	Cooldown                string `toml:"cooldown"`
-	Mode                    string `toml:"mode"`
-	MaxSimultaneousFailures int    `toml:"max_simultaneous_failures"`
+	Duration string `toml:"duration"`
+	Cooldown string `toml:"cooldown"`
+	Mode     string `toml:"mode"`
 }
 
 type Grafana struct {

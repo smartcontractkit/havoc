@@ -54,11 +54,11 @@ func TestGenerating(t *testing.T) {
 			IgnoredPods: []string{"geth", "mockserver", "-db-"},
 			Failure: &havoc.Failure{
 				Duration:        "5s",
-				GroupPercentage: "0.3",
+				GroupPercentage: []string{"30"},
 			},
 			Latency: &havoc.Latency{
 				Duration:        "5s",
-				GroupPercentage: "0.3",
+				GroupPercentage: []string{"30"},
 				Latency:         "300ms",
 			},
 			StressMemory: &havoc.StressMemory{
@@ -86,11 +86,11 @@ func TestCommonIntegrationWithLoadTool(t *testing.T) {
 			Dir: "my-experiments",
 			Failure: &havoc.Failure{
 				Duration:        "5s",
-				GroupPercentage: "0.3",
+				GroupPercentage: []string{"30"},
 			},
 			Latency: &havoc.Latency{
 				Duration:        "5s",
-				GroupPercentage: "0.3",
+				GroupPercentage: []string{"30"},
 				Latency:         "300ms",
 			},
 			StressMemory: &havoc.StressMemory{

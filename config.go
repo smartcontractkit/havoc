@@ -20,7 +20,6 @@ const (
 
 const (
 	DefaultExperimentsDir         = "havoc-experiments"
-	DefaultGroupPercentage        = "30"
 	DefaultPodFailureDuration     = "1m"
 	DefaultNetworkLatencyDuration = "1m"
 	DefaultStressMemoryDuration   = "1m"
@@ -30,6 +29,11 @@ const (
 	DefaultStressCPUWorkers       = 1
 	DefaultStressCPULoad          = 100
 	DefaultNetworkLatency         = "500ms"
+)
+
+var (
+	DefaultGroupPercentage = []string{"30", "20", "10"}
+	DefaultGroupFixed      = []string{"3", "2", "1"}
 )
 
 var (
@@ -55,31 +59,36 @@ type Config struct {
 }
 
 type Havoc struct {
-	Dir               string           `toml:"dir"`
-	IgnoredPods       []string         `toml:"ignore_pods"`
-	IgnoreGroupLabels []string         `toml:"ignore_group_labels"`
-	Failure           *Failure         `toml:"failure"`
-	Latency           *Latency         `toml:"latency"`
-	StressMemory      *StressMemory    `toml:"stress_memory"`
-	StressCPU         *StressCPU       `toml:"stress_cpu"`
-	ExternalTargets   *ExternalTargets `toml:"external_targets"`
-	Monkey            *Monkey          `toml:"monkey"`
-	Grafana           *Grafana         `toml:"grafana"`
+	Dir                  string           `toml:"dir"`
+	ExperimentTypes      []string         `toml:"experiment_types"`
+	NamespaceLabelFilter string           `toml:"namespace_label_filter"`
+	IgnoredPods          []string         `toml:"ignore_pods"`
+	IgnoreGroupLabels    []string         `toml:"ignore_group_labels"`
+	Failure              *Failure         `toml:"failure"`
+	Latency              *Latency         `toml:"latency"`
+	StressMemory         *StressMemory    `toml:"stress_memory"`
+	StressCPU            *StressCPU       `toml:"stress_cpu"`
+	ExternalTargets      *ExternalTargets `toml:"external_targets"`
+	Monkey               *Monkey          `toml:"monkey"`
+	Grafana              *Grafana         `toml:"grafana"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Havoc: &Havoc{
 			Dir:               DefaultExperimentsDir,
+			ExperimentTypes:   RecommendedExperimentTypes,
 			IgnoreGroupLabels: DefaultIgnoreGroupLabels,
 			Failure: &Failure{
 				Duration:        DefaultPodFailureDuration,
 				GroupPercentage: DefaultGroupPercentage,
+				GroupFixed:      DefaultGroupFixed,
 			},
 			Latency: &Latency{
 				Duration:        DefaultNetworkLatencyDuration,
 				Latency:         DefaultNetworkLatency,
 				GroupPercentage: DefaultGroupPercentage,
+				GroupFixed:      DefaultGroupFixed,
 			},
 			StressMemory: &StressMemory{
 				Duration: DefaultStressMemoryDuration,
@@ -167,14 +176,16 @@ func (c *Config) Validate() []error {
 }
 
 type Failure struct {
-	Duration        string `toml:"duration"`
-	GroupPercentage string `toml:"group_percentage"`
+	Duration        string   `toml:"duration"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
 }
 
 type Latency struct {
-	Duration        string `toml:"duration"`
-	GroupPercentage string `toml:"group_percentage"`
-	Latency         string `toml:"latency"`
+	Duration        string   `toml:"duration"`
+	GroupPercentage []string `toml:"group_percentage"`
+	GroupFixed      []string `toml:"group_fixed"`
+	Latency         string   `toml:"latency"`
 }
 
 type StressMemory struct {

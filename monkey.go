@@ -120,7 +120,7 @@ func (m *Controller) Run() error {
 	m.wg.Add(1)
 	switch m.cfg.Havoc.Monkey.Mode {
 	case MonkeyModeSeq:
-		for _, expType := range RecommendedExperimentTypes {
+		for _, expType := range m.cfg.Havoc.ExperimentTypes {
 			experiments, err := m.ReadExperimentsFromDir([]string{expType}, m.cfg.Havoc.Dir)
 			if err != nil {
 				m.errors = append(m.errors, err)
@@ -154,7 +154,7 @@ func (m *Controller) Run() error {
 	case MonkeyModeRandom:
 		allExperiments := make([]*NamedExperiment, 0)
 		r := rand.New(rand.NewSource(time.Now().Unix()))
-		for _, expType := range RecommendedExperimentTypes {
+		for _, expType := range m.cfg.Havoc.ExperimentTypes {
 			experiments, err := m.ReadExperimentsFromDir([]string{expType}, m.cfg.Havoc.Dir)
 			if err != nil {
 				m.errors = append(m.errors, err)

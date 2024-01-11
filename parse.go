@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"sort"
+	"strings"
 )
 
 const (
@@ -97,7 +98,13 @@ func (m *Controller) GetPodsInfo(namespace string) (*PodsListResponse, error) {
 	if _, err := ExecCmd(fmt.Sprintf("kubectl get ns %s", namespace)); err != nil {
 		return nil, errors.Wrap(errors.New(ErrNoNamespace), namespace)
 	}
-	out, err := ExecCmd(fmt.Sprintf("kubectl get pods -n %s -o json", namespace))
+	var cmdBuilder strings.Builder
+	cmdBuilder.Write([]byte(fmt.Sprintf("kubectl get pods -n %s ", namespace)))
+	if m.cfg.Havoc.NamespaceLabelFilter != "" {
+		cmdBuilder.Write([]byte(fmt.Sprintf("-l %s ", m.cfg.Havoc.NamespaceLabelFilter)))
+	}
+	cmdBuilder.Write([]byte("-o json"))
+	out, err := ExecCmd(cmdBuilder.String())
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 [havoc]
 # dir is a custom dir you can select, if null monkey will create a new dir
-dir = "havoc-experiments-custom"
+dir = "experiments-crib-core"
+# if you have multiple products inside one namespace this can help to filter by label in k=v format
+namespace_label_filter = ""
 # pods with this prefix will be ignored when generating experiments
 ignore_pods = ["geth", "mockserver", "-db-"]
 # group labels containing these strings will be ignored when generating group experiments
@@ -17,17 +19,21 @@ ignore_group_labels = [
     "chain.link/team",
     "app.kubernetes.io/part-of",
     "app.kubernetes.io/managed-by",
+    "app.chain.link/product",
+    "app.kubernetes.io/version",
+    "app.chain.link/blockchain"
 #    "app.kubernetes.io/instance",
 #    "app.kubernetes.io/name",
 ]
-# mercury
-#ignore_pods = ["mainnet"]
-#ignore_group_labels = ["mainnet", "pod-template-hash", "intents.otterize.com", "app.kubernetes.io/name", "'chain.link/team", "'chain.link/project", "chain.link/env", "chain.link/cost-center"]
+# these are experiment types you'd like to generate, it also defines an order of execution in seq mode
+experiment_types = ["external", "failure", "latency", "cpu", "memory", "group-failure", "group-latency"]
+
 [havoc.failure]
 # duration of a "failure" experiment
 duration = "10s"
 # percentage of pods experiments affect in groups, see group-failure key and dir when generated
-group_percentage = "30"
+group_percentage = ["30", "20", "10"]
+group_fixed = ["3", "2", "1"]
 
 [havoc.latency]
 # duration of "latency" experiment
@@ -35,7 +41,8 @@ duration = "10s"
 # constant latency to inject
 latency = "300ms"
 # percentage of pods experiments affect in groups, see group-failure key and dir when generated
-group_percentage = "30"
+group_percentage = ["30", "20", "10"]
+group_fixed = ["3", "2", "1"]
 
 [havoc.stress_memory]
 # duration of "stress" experiment affecting pod memory
@@ -59,7 +66,7 @@ group_percentage = "30"
 
 [havoc.external_targets]
 # duration of "external" experiment
-duration = "1m"
+duration = "10s"
 # URL of external service that'd fail to resolve
 urls = ["www.google.com"]
 

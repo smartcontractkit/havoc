@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-geth-55b64cdf59-lhltz
+  namespace: my-test-namespace
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: geth-55b64cdf59-lhltz
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

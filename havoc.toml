@@ -25,7 +25,7 @@ ignore_group_labels = [
     "app.kubernetes.io/instance",
     "app.kubernetes.io/name",
 ]
-# these are experiment types you'd like to generate, it also defines an order of execution in seq mode
+# these are experiment types you'd like to generate
 experiment_types = ["external", "failure", "latency", "cpu", "memory", "group-failure", "group-latency"]
 
 [havoc.failure]

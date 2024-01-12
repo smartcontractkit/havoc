@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -54,7 +55,6 @@ type NetworkChaosExperiment struct {
 	Mode           string
 	ModeValue      string
 	Namespace      string
-	WaitLabel      string
 	Duration       string
 	Latency        string
 	PodName        string
@@ -68,8 +68,6 @@ apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   selector:
     namespaces:
@@ -116,7 +114,6 @@ spec:
 type NetworkChaosExternalPartitionExperiment struct {
 	ExperimentName string
 	Namespace      string
-	WaitLabel      string
 	Duration       string
 	PodName        string
 	ExternalURL    string
@@ -129,8 +126,6 @@ apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   selector:
     namespaces:
@@ -159,7 +154,6 @@ type PodFailureExperiment struct {
 	Mode           string
 	ModeValue      string
 	Namespace      string
-	WaitLabel      string
 	Duration       string
 	PodName        string
 	Selector       string
@@ -172,8 +166,6 @@ kind: PodChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   action: pod-failure
   mode: {{ .Mode }}
@@ -200,7 +192,6 @@ spec:
 type PodStressCPUExperiment struct {
 	ExperimentName string
 	Namespace      string
-	WaitLabel      string
 	Workers        int
 	Load           int
 	Duration       string
@@ -215,8 +206,6 @@ kind: StressChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   mode: one
   duration: {{ .Duration }}
@@ -243,7 +232,6 @@ spec:
 type PodStressMemoryExperiment struct {
 	ExperimentName string
 	Namespace      string
-	WaitLabel      string
 	Workers        int
 	Memory         string
 	Duration       string
@@ -258,8 +246,6 @@ kind: StressChaos
 metadata:
   name: {{ .ExperimentName }}
   namespace: {{ .Namespace }}
-  labels:
-    waitLabel: {{ .WaitLabel }}
 spec:
   mode: one
   duration: {{ .Duration }}
@@ -287,6 +273,30 @@ type NamedExperiment struct {
 	Name     string
 	Type     string
 	Manifest string
+}
+
+func (m *Controller) readExistingExperimentTypes(dir string) ([]string, error) {
+	expTypes := make([]string, 0)
+	err := filepath.Walk(
+		dir,
+		func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() && info.Name() != dir {
+				expTypes = append(expTypes, info.Name())
+				return nil
+			}
+			return err
+		})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(expTypes, func(i, j int) bool {
+		return expTypes[i] < expTypes[j]
+	})
+	L.Info().Strs("Order", expTypes).Msg("Order of experiment dirs execution")
+	return expTypes, nil
 }
 
 func (m *Controller) ReadExperimentsFromDir(expTypes []string, dir string) ([]*NamedExperiment, error) {
@@ -341,7 +351,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 				ph, err := NetworkChaosExternalPartitionExperiment{
 					Namespace:      namespace,
 					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypePartitionExternal, nsAndURLHash),
-					WaitLabel:      nsAndURLHash,
 					Duration:       m.cfg.Havoc.ExternalTargets.Duration,
 					ExternalURL:    fmt.Sprintf("'%s'", u),
 				}.String()
@@ -357,7 +366,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 				ph, err := PodFailureExperiment{
 					Namespace:      namespace,
 					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeFailure, pi.PodName),
-					WaitLabel:      pi.PodName,
 					Mode:           "one",
 					Duration:       m.cfg.Havoc.Failure.Duration,
 					PodName:        pi.PodName,
@@ -375,7 +383,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					Namespace:      namespace,
 					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeLatency, mfp.PodName),
 					Mode:           "one",
-					WaitLabel:      mfp.PodName,
 					Duration:       m.cfg.Havoc.Latency.Duration,
 					Latency:        m.cfg.Havoc.Latency.Latency,
 					PodName:        mfp.PodName,
@@ -392,7 +399,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 				ph, err := PodStressCPUExperiment{
 					Namespace:      namespace,
 					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressCPU, mfp.PodName),
-					WaitLabel:      mfp.PodName,
 					Duration:       m.cfg.Havoc.StressCPU.Duration,
 					Workers:        m.cfg.Havoc.StressCPU.Workers,
 					Load:           m.cfg.Havoc.StressCPU.Load,
@@ -410,7 +416,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 				ph, err := PodStressMemoryExperiment{
 					Namespace:      namespace,
 					ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeStressMemory, mfp.PodName),
-					WaitLabel:      mfp.PodName,
 					Duration:       m.cfg.Havoc.StressMemory.Duration,
 					Workers:        m.cfg.Havoc.StressMemory.Workers,
 					Memory:         m.cfg.Havoc.StressMemory.Memory,
@@ -431,7 +436,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					ph, err := PodFailureExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
-						WaitLabel:      sanitizedLabel,
 						Duration:       m.cfg.Havoc.Failure.Duration,
 						Mode:           "fixed-percent",
 						ModeValue:      groupModeValue,
@@ -448,7 +452,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					ph, err := PodFailureExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupFailure, sanitizedLabel),
-						WaitLabel:      sanitizedLabel,
 						Duration:       m.cfg.Havoc.Failure.Duration,
 						Mode:           "fixed",
 						ModeValue:      groupModeValue,
@@ -470,7 +473,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					ph, err := NetworkChaosExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
-						WaitLabel:      sanitizedLabel,
 						Mode:           "fixed-percent",
 						ModeValue:      groupModeValue,
 						Duration:       m.cfg.Havoc.Latency.Duration,
@@ -488,7 +490,6 @@ func (m *Controller) generate(namespace string, lfd []*ActionablePodInfo, groupL
 					ph, err := NetworkChaosExperiment{
 						Namespace:      namespace,
 						ExperimentName: fmt.Sprintf("%s-%s", ChaosTypeGroupLatency, sanitizedLabel),
-						WaitLabel:      sanitizedLabel,
 						Mode:           "fixed",
 						ModeValue:      groupModeValue,
 						Duration:       m.cfg.Havoc.Latency.Duration,
@@ -611,15 +612,17 @@ func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool)
 			expName = strings.Replace(expName, ".yaml", "", -1)
 			var out string
 			out, errDefer = ExecCmd(
-				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s-%s -o json",
-					chaosType,
+				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s -o json",
 					expName,
 				))
 			errDefer = eventsForLastMinutes(out, timeOfApplication)
-			_, errDefer = ExecCmd(fmt.Sprintf("kubectl delete %s %s-%s", ExperimentsToCRDs[chaosType], chaosType, expName))
+			_, errDefer = ExecCmd(fmt.Sprintf("kubectl delete %s %s", ExperimentsToCRDs[chaosType], expName))
+			if errDefer != nil {
+				L.Error().Err(err).Msg("Error reading events")
+			}
 		}()
 		_, err = ExecCmd(
-			fmt.Sprintf("kubectl wait %s -l waitLabel=%s --for condition=AllRecovered=True --timeout %s",
+			fmt.Sprintf("kubectl wait %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
 				ExperimentsToCRDs[chaosType],
 				chaosFilenameParts[0],
 				DefaultCMDTimeout,

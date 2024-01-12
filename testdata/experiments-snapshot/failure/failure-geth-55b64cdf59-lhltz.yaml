@@ -1,0 +1,13 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: failure-geth-55b64cdf59-lhltz
+  namespace: my-test-namespace
+spec:
+  action: pod-failure
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: geth-55b64cdf59-lhltz

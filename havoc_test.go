@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	SnapshotDir        = "testdata/experiments-snapshot"
-	TestExperimentsDir = "testdata/experiments-test"
+	SnapshotDir = "testdata/experiments-snapshot"
 )
 
 func TestSmokeParsingGenerating(t *testing.T) {
@@ -19,14 +18,14 @@ func TestSmokeParsingGenerating(t *testing.T) {
 	var depls *PodsListResponse
 	err = json.Unmarshal(d, &depls)
 	require.NoError(t, err)
-	m, err := NewController(nil)
+	m, err := NewController(DefaultConfig())
 	require.NoError(t, err)
 	// namespace doesn't matter here, we are checking that generated files are valid
 	_, _, err = m.generateSpecs("my-test-namespace", depls)
 	require.NoError(t, err)
 	snapshotData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, SnapshotDir)
 	require.NoError(t, err)
-	generatedData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, TestExperimentsDir)
+	generatedData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, DefaultExperimentsDir)
 	require.NoError(t, err)
 	for i := range snapshotData {
 		require.Equal(t, snapshotData[i], generatedData[i])

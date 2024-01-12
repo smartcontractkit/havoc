@@ -1,0 +1,25 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: latency-runner-64c589dd4b-qpfx7
+  namespace: my-test-namespace
+spec:
+  selector:
+    namespaces:
+      - my-test-namespace
+    fieldSelectors:
+      metadata.name: runner-64c589dd4b-qpfx7
+  mode: one
+  action: delay
+  duration: 1m
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - my-test-namespace
+      fieldSelectors:
+        metadata.name: runner-64c589dd4b-qpfx7
+    mode: one

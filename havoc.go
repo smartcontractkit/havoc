@@ -64,7 +64,7 @@ func (m *ChaosSpecs) Dump(dir string) error {
 		}
 		for expName, expBody := range m.ExperimentsByType[expType] {
 			if err := os.WriteFile(
-				fmt.Sprintf("%s/%s/%s.yaml", dir, expType, expName),
+				fmt.Sprintf("%s/%s/%s-%s.yaml", dir, expType, expType, expName),
 				[]byte(expBody),
 				os.ModePerm,
 			); err != nil {

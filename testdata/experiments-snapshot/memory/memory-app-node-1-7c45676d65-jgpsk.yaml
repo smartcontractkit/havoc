@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-app-node-1-7c45676d65-jgpsk
+  namespace: my-test-namespace
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: app-node-1-7c45676d65-jgpsk
+  stressors:
+    memory:
+      workers: 1
+      size: 512MB

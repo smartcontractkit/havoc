@@ -1,0 +1,13 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: failure-app-node-6-5bc7b5ccf7-6c426
+  namespace: my-test-namespace
+spec:
+  action: pod-failure
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: app-node-6-5bc7b5ccf7-6c426

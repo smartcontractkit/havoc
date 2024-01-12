@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-app-node-3-db-67596568-78czd
+  namespace: my-test-namespace
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: app-node-3-db-67596568-78czd
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

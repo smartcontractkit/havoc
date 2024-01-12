@@ -177,11 +177,21 @@ havoc run -c havoc.toml [namespace]
 					if err != nil {
 						return err
 					}
-					if cfg.Havoc.Dir == DefaultExperimentsDir {
+					if _, err := os.Stat(cfg.Havoc.Dir); err != nil {
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Dir not found, generating specified experiments directory")
 						err = m.GenerateSpecs(ns)
 						if err != nil {
 							return err
 						}
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Using existing experiments dir, skipping generation")
+					} else {
+						L.Info().
+							Str("Dir", cfg.Havoc.Dir).
+							Msg("Using existing experiments dir, skipping generation")
 					}
 					return m.Run()
 				},

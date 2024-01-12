@@ -1,0 +1,25 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: latency-app-node-5-db-6956584c48-fl7sj
+  namespace: my-test-namespace
+spec:
+  selector:
+    namespaces:
+      - my-test-namespace
+    fieldSelectors:
+      metadata.name: app-node-5-db-6956584c48-fl7sj
+  mode: one
+  action: delay
+  duration: 1m
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - my-test-namespace
+      fieldSelectors:
+        metadata.name: app-node-5-db-6956584c48-fl7sj
+    mode: one

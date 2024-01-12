@@ -1,0 +1,16 @@
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-app-node-1-7c45676d65-jgpsk
+  namespace: my-test-namespace
+spec:
+  mode: one
+  duration: 1m
+  selector:
+    fieldSelectors:
+      metadata.name: app-node-1-7c45676d65-jgpsk
+  stressors:
+    cpu:
+      workers: 1
+      load: 100

@@ -1,0 +1,27 @@
+
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: group-latency-app-app-db-2-fixed
+  namespace: my-test-namespace
+spec:
+  selector:
+    namespaces:
+      - my-test-namespace
+    labelSelectors:
+      'app': 'app-db'
+  mode: fixed
+  value: '2'
+  action: delay
+  duration: 1m
+  delay:
+    latency: 300ms
+  direction: from
+  target:
+    selector:
+      namespaces:
+        - my-test-namespace
+      labelSelectors:
+        'app': 'app-db'
+    mode: fixed
+    value: '2'

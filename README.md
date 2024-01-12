@@ -72,9 +72,13 @@ See how you can use recommended experiments from code in [examples](examples)
 
 Havoc is just a generator and a module that reads your `dir = $mydir` from config
 
-If you wish to add custom experiments written by hand create your custom directory and mimick the layout
+If you wish to add custom experiments written by hand create your custom directory and add experiments
 
-Add your failure type dir, like `io`, and insert experiments for your namespace, then use `run` or `apply` commands to trigger the experiment(s)
+Experiments will be executed in lexicographic order, however, for custom experiments there are 2 simple rules:
+- directory names must be in `["external", "failure", "latency", "cpu", "memory", "group-failure", "group-latency"]`
+- `metadata.name` should be equal to your experiment filename
+
+When you are using `run` monkey command, if directory is not empty havoc won't automatically generate experiments, so you can extend generated experiments with your custom modifications
 
 ### Developing
 
@@ -94,6 +98,6 @@ nix develop
 - Writing chaos experiments is tedious, in most cases you just copy-paste a lot, or you can forget something
 - Workflows validation is broken
 - Can't mix chaos experiments and API calls
-- No straightforward integration with load testing tools, it's easy to run an experiment, but it's hard to validate it right away
+- No straightforward integration with load testing tools, it's easy to run an experiment, but it's hard to validate it right away without additional code
 - Can't check chaos experiments statuses through API and fail the test, need to use k8s
 - Experiments created from YAML and UI and not always compatible

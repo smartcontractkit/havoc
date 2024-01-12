@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -48,6 +49,14 @@ func MarshalTemplate(jobSpec interface{}, name, templateString string) (string, 
 		return "", err
 	}
 	return buf.String(), err
+}
+
+type CommonExperimentMeta struct {
+	Kind     string `yaml:"string"`
+	Metadata struct {
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
+	} `yaml:"metadata"`
 }
 
 type NetworkChaosExperiment struct {
@@ -594,6 +603,10 @@ func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool)
 	if err != nil {
 		return err
 	}
+	var meta *CommonExperimentMeta
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return err
+	}
 	L.Info().
 		Str("Dir", m.cfg.Havoc.Dir).
 		Str("Type", chaosType).
@@ -616,13 +629,18 @@ func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool)
 					expName,
 				))
 			errDefer = eventsForLastMinutes(out, timeOfApplication)
-			_, errDefer = ExecCmd(fmt.Sprintf("kubectl delete %s %s", ExperimentsToCRDs[chaosType], expName))
+			_, errDefer = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", meta.Metadata.Namespace, ExperimentsToCRDs[chaosType], expName))
 			if errDefer != nil {
 				L.Error().Err(err).Msg("Error reading events")
 			}
 		}()
+		var meta *CommonExperimentMeta
+		if err := yaml.Unmarshal(data, &meta); err != nil {
+			return err
+		}
 		_, err = ExecCmd(
-			fmt.Sprintf("kubectl wait %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
+			fmt.Sprintf("kubectl wait -n %s %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
+				meta.Metadata.Namespace,
 				ExperimentsToCRDs[chaosType],
 				chaosFilenameParts[0],
 				DefaultCMDTimeout,

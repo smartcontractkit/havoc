@@ -63,6 +63,11 @@ This will create `havoc-experiments` dir, then you can choose from recommended e
 havoc -c havoc.toml apply
 ```
 
+You can also apply your experiment directly, using absolute or relative path to experiment file
+```
+havoc -c havoc.toml apply ${experiment_file_path}
+```
+
 ### Monkey mode
 You can run havoc as an automated sequential or randomized suite
 ```

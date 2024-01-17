@@ -116,11 +116,10 @@ havoc -c havoc.toml -d custom_experiments [namespace]
 				Aliases:  []string{"a"},
 				Description: `applies an experiment from a file:
 examples:
-havoc apply failure
-havoc apply latency
-havoc apply memory
-havoc apply cpu
-havoc apply <crd_path>
+# selecting an experiment
+havoc -c havoc.toml apply
+# applying experiment directly with relative or abs path
+havoc apply ${experiment_path}
 `,
 				Action: func(cliCtx *cli.Context) error {
 					cfg, err := ReadConfig(cliCtx.String("config"))

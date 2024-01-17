@@ -6,9 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -17,6 +14,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -369,10 +370,45 @@ spec:
 	)
 }
 
+type CRD struct {
+	Kind       string `yaml:"kind"`
+	APIVersion string `yaml:"apiVersion"`
+	Metadata   struct {
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
+	} `yaml:"metadata"`
+	Spec interface{} `yaml:"spec"` // Use interface{} if the spec can have various structures
+}
+
 type NamedExperiment struct {
+	CRD
 	Name     string
-	Type     string
-	Manifest string
+	Path     string
+	CRDBytes []byte
+}
+
+func NewNamedExperiment(expPath string) (*NamedExperiment, error) {
+	data, err := os.ReadFile(expPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var exp CRD
+	err = yaml.Unmarshal(data, &exp)
+	if err != nil {
+		return nil, err
+	}
+	expName := exp.Metadata.Name
+	if expName == "" {
+		return nil, errors.Errorf("experiment metadata.name is empty")
+	}
+
+	return &NamedExperiment{
+		CRD:      exp,
+		Name:     expName,
+		Path:     expPath,
+		CRDBytes: data,
+	}, nil
 }
 
 func (m *Controller) readExistingExperimentTypes(dir string) ([]string, error) {
@@ -416,15 +452,11 @@ func (m *Controller) ReadExperimentsFromDir(expTypes []string, dir string) ([]*N
 				if info.IsDir() {
 					return nil
 				}
-				data, err := os.ReadFile(path)
+				exp, err := NewNamedExperiment(path)
 				if err != nil {
 					return err
 				}
-				expData = append(expData, &NamedExperiment{
-					Name:     info.Name(),
-					Type:     expType,
-					Manifest: string(data),
-				})
+				expData = append(expData, exp)
 				return err
 			})
 		if err != nil {
@@ -814,56 +846,46 @@ func eventsForLastMinutes(out string, timeOfApplication time.Time) error {
 	return nil
 }
 
-func (m *Controller) ApplyChaosFile(chaosType string, expName string, wait bool) error {
+func (m *Controller) ApplyExperiment(exp *NamedExperiment, wait bool) error {
 	timeOfApplication := time.Now()
 	var errDefer error
-	data, err := os.ReadFile(filepath.Join(m.cfg.Havoc.Dir, chaosType, expName))
-	if err != nil {
-		return err
-	}
-	var meta *CommonExperimentMeta
-	if err := yaml.Unmarshal(data, &meta); err != nil {
-		return err
-	}
-	if meta.Kind == ChaosTypeBlockchainSetHead {
-		return m.ApplyCustomKindChaosFile(data, chaosType, expName, wait)
+	if exp.Kind == ChaosTypeBlockchainSetHead {
+		return m.ApplyCustomKindChaosFile(exp, ChaosTypeBlockchainSetHead, wait)
 	}
 	L.Info().
 		Str("Dir", m.cfg.Havoc.Dir).
-		Str("Type", chaosType).
-		Str("Name", expName).
+		Str("Type", exp.Kind).
+		Str("Name", exp.Metadata.Name).
 		Msg("Applying experiment manifest")
-	fmt.Println(string(data))
-	_, err = ExecCmd(fmt.Sprintf("kubectl apply -f %s/%s/%s", m.cfg.Havoc.Dir, chaosType, expName))
+	fmt.Println(string(exp.CRDBytes))
+	_, err := ExecCmd(fmt.Sprintf("kubectl apply -f %s", exp.Path))
 	if err != nil {
 		return errors.Wrap(err, ErrExperimentApply)
 	}
-	chaosFilenameParts := strings.Split(expName, ".")
 	if wait {
+		resourceType := ExperimentsToCRDs[exp.Kind]
+		if resourceType == "" {
+			return errors.Errorf("%s resource not present in %+v list", exp.Kind, ExperimentsToCRDs)
+		}
 		// we delete only if we wait for experiments, otherwise we don't know if it's safe to delete
 		// or we can't wait for experiment to end
 		defer func() {
-			expName = strings.Replace(expName, ".yaml", "", -1)
 			var out string
 			out, errDefer = ExecCmd(
 				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s -o json",
-					expName,
+					exp.Name,
 				))
 			errDefer = eventsForLastMinutes(out, timeOfApplication)
-			_, errDefer = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", meta.Metadata.Namespace, ExperimentsToCRDs[chaosType], expName))
+			_, errDefer = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", exp.Metadata.Namespace, resourceType, exp.Name))
 			if errDefer != nil {
 				L.Error().Err(err).Msg("Error reading events")
 			}
 		}()
-		var meta *CommonExperimentMeta
-		if err := yaml.Unmarshal(data, &meta); err != nil {
-			return err
-		}
 		_, err = ExecCmd(
 			fmt.Sprintf("kubectl wait -n %s %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
-				meta.Metadata.Namespace,
-				ExperimentsToCRDs[chaosType],
-				chaosFilenameParts[0],
+				exp.Metadata.Namespace,
+				resourceType,
+				exp.Metadata.Name,
 				DefaultCMDTimeout,
 			))
 		if err != nil {
@@ -878,19 +900,23 @@ type CurrentBlockResponse struct {
 	Result string `json:"result"`
 }
 
-func (m *Controller) ApplyCustomKindChaosFile(data []byte, chaosType string, expName string, wait bool) error {
+func (m *Controller) ApplyCustomKindChaosFile(exp *NamedExperiment, chaosType string, wait bool) error {
 	switch chaosType {
 	case ChaosTypeBlockchainSetHead:
 		var rewind *BlockchainRewindHeadExperiment
+		data, err := os.ReadFile(exp.Path)
+		if err != nil {
+			return nil
+		}
 		if err := yaml.Unmarshal(data, &rewind); err != nil {
 			return err
 		}
 		L.Info().
 			Str("Dir", m.cfg.Havoc.Dir).
 			Str("Type", chaosType).
-			Str("Name", expName).
+			Str("Name", exp.Name).
 			Msg("Applying custom experiment")
-		fmt.Println(string(data))
+		fmt.Println(string(exp.CRDBytes))
 		lastBlkCommand := fmt.Sprintf(`kubectl exec -n %s %s -- curl -s -X POST -H Content-Type:application/json --data {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":5} %s`,
 			rewind.Namespace,
 			rewind.PodName,

@@ -2,12 +2,13 @@ package havoc
 
 import (
 	"fmt"
-	"github.com/c-bata/go-prompt"
-	"github.com/pkg/errors"
-	"github.com/urfave/cli/v2"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/c-bata/go-prompt"
+	"github.com/pkg/errors"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -119,6 +120,7 @@ havoc apply failure
 havoc apply latency
 havoc apply memory
 havoc apply cpu
+havoc apply <crd_path>
 `,
 				Action: func(cliCtx *cli.Context) error {
 					cfg, err := ReadConfig(cliCtx.String("config"))
@@ -133,28 +135,34 @@ havoc apply cpu
 					if err != nil {
 						return err
 					}
-					expType := prompt.Input("Choose experiment type >> ", cc)
-					if expType == "" {
-						return errors.New(ErrNoSelection)
-					}
-					c, err := experimentCompleter(m.cfg.Havoc.Dir, expType)
-					if err != nil {
-						return errors.Wrap(err, ErrAutocompleteError)
-					}
-					expName := prompt.Input("Choose experiment name >> ", c)
-					if expName == "" {
-						return errors.New(ErrNoSelection)
+
+					var expPath string
+
+					arg := cliCtx.Args().Get(0)
+
+					if arg != "" {
+						expPath = arg
+					} else {
+						expType := prompt.Input("Choose experiment type >> ", cc)
+						if expType == "" {
+							return errors.New(ErrNoSelection)
+						}
+						c, err := experimentCompleter(m.cfg.Havoc.Dir, expType)
+						if err != nil {
+							return errors.Wrap(err, ErrAutocompleteError)
+						}
+						expName := prompt.Input("Choose experiment name >> ", c)
+						if expName == "" {
+							return errors.New(ErrNoSelection)
+						}
+						expPath = fmt.Sprintf("%s/%s/%s", cfg.Havoc.Dir, expType, expName)
 					}
 
-					data, err := os.ReadFile(fmt.Sprintf("%s/%s/%s", cfg.Havoc.Dir, expType, expName))
+					nexp, err := NewNamedExperiment(expPath)
 					if err != nil {
 						return err
 					}
-					nexp := &NamedExperiment{
-						Name:     expName,
-						Type:     expType,
-						Manifest: string(data),
-					}
+
 					return m.ApplyAndAnnotate(nexp)
 				},
 			},

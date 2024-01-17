@@ -3,11 +3,12 @@ package havoc
 import (
 	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"github.com/pkg/errors"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 
 type ExperimentAction struct {
 	Name           string
-	ExperimentType string
+	ExperimentKind string
 	ExperimentSpec string
 	TimeStart      int64
 	TimeEnd        int64
@@ -76,7 +77,7 @@ func (m *Controller) AnnotateExperiment(a *ExperimentAction) error {
 			DashboardUID: dashboardUID,
 			Time:         start,
 			TimeEnd:      end,
-			Tags:         []string{"havoc", a.ExperimentType},
+			Tags:         []string{"havoc", a.ExperimentKind},
 			Text: fmt.Sprintf(
 				"File: %s\n%s",
 				a.Name,
@@ -102,11 +103,11 @@ func (m *Controller) AnnotateExperiment(a *ExperimentAction) error {
 func (m *Controller) ApplyAndAnnotate(exp *NamedExperiment) error {
 	ea := &ExperimentAction{
 		Name:           exp.Name,
-		ExperimentType: exp.Type,
-		ExperimentSpec: exp.Manifest,
+		ExperimentKind: exp.Kind,
+		ExperimentSpec: string(exp.CRDBytes),
 		TimeStart:      time.Now().Unix(),
 	}
-	if err := m.ApplyChaosFile(exp.Type, exp.Name, true); err != nil {
+	if err := m.ApplyExperiment(exp, true); err != nil {
 		return err
 	}
 	ea.TimeEnd = time.Now().Unix()

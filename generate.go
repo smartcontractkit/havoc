@@ -66,18 +66,26 @@ type CommonExperimentMeta struct {
 }
 
 type BlockchainRewindHeadExperiment struct {
-	ExperimentName      string `yaml:"experimentName"`
-	Namespace           string `yaml:"namespace"`
-	PodName             string `yaml:"podName"`
-	ExecutorPodPrefix   string `yaml:"executorPodPrefix"`
-	NodeInternalHTTPURL string `yaml:"nodeInternalHTTPURL"`
-	Blocks              int64  `yaml:"blocks"`
+	ExperimentName      string    `yaml:"experimentName"`
+	Metadata            *Metadata `yaml:"metadata"`
+	Namespace           string    `yaml:"namespace"`
+	PodName             string    `yaml:"podName"`
+	ExecutorPodPrefix   string    `yaml:"executorPodPrefix"`
+	NodeInternalHTTPURL string    `yaml:"nodeInternalHTTPURL"`
+	Blocks              int64     `yaml:"blocks"`
+}
+
+type Metadata struct {
+	Name   string            `json:"name"`
+	Labels map[string]string `json:"labels"`
 }
 
 func (m BlockchainRewindHeadExperiment) String() (string, error) {
 	tpl := `
 kind: blockchain_rewind_head
 name: {{ .ExperimentName }}
+metadata:
+  name: {{ .Metadata.Name }}
 podName: {{ .PodName }}
 nodeInternalHTTPURL: {{ .NodeInternalHTTPURL }}
 namespace: {{ .Namespace }}
@@ -475,8 +483,10 @@ func (m *Controller) generate(namespace string, podsInfo []*ActionablePodInfo, g
 			for _, pi := range podsInfo {
 				if strings.Contains(pi.PodName, m.cfg.Havoc.BlockchainRewindHead.ExecutorPodPrefix) {
 					for _, b := range m.cfg.Havoc.BlockchainRewindHead.Blocks {
+						name := fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.PodName, b)
 						experiment, err := BlockchainRewindHeadExperiment{
-							ExperimentName:      fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.PodName, b),
+							ExperimentName:      name,
+							Metadata:            &Metadata{Name: name},
 							Namespace:           namespace,
 							NodeInternalHTTPURL: m.cfg.Havoc.BlockchainRewindHead.NodeInternalHTTPURL,
 							PodName:             pi.PodName,

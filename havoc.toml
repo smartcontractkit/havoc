@@ -103,7 +103,7 @@ urls = ["www.google.com"]
 # havoc monkey mode:
 # seq - runs all experiments from all dirs sequentially one time
 # rand - runs random experiments from all dirs
-mode = "rand"
+mode = "seq"
 # duration of havoc monkey
 duration = "3m"
 # cooldown between experiments

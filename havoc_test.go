@@ -2,10 +2,12 @@ package havoc
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -112,6 +114,8 @@ func TestSmokeParsingGenerating(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, len(snapshotData), len(generatedData))
 			for i := range snapshotData {
+				// Replace snapshot dir name to match it with expected results path
+				snapshotData[i].Path = strings.ReplaceAll(snapshotData[i].Path, "testdata/snapshot", "testdata/results")
 				require.Equal(t, snapshotData[i], generatedData[i])
 			}
 		})

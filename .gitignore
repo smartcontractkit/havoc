@@ -55,4 +55,5 @@ havoc-monkey-temp-dir
 config_dump.toml
 pods_dump.json
 testdata/result/**
+testdata/results/**
 !testdata/results/.gitkeep

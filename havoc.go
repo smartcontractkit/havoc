@@ -20,24 +20,13 @@ const (
 	ChaosTypeStressGroupCPU    = "group-cpu"
 	ChaosTypePartitionExternal = "external"
 	ChaosTypePartitionGroup    = "group-partition"
-	PodChaosKind               = "PodChaos"
-	NetworkChaosKind           = "NetworkChaos"
 )
 
 var (
-	ExperimentsToCRDs = map[string]string{
-		ChaosTypeFailure:           "podchaos.chaos-mesh.org",
-		ChaosTypeGroupFailure:      "podchaos.chaos-mesh.org",
-		PodChaosKind:               "podchaos.chaos-mesh.org",
-		ChaosTypeLatency:           "networkchaos.chaos-mesh.org",
-		ChaosTypeGroupLatency:      "networkchaos.chaos-mesh.org",
-		NetworkChaosKind:           "networkchaos.chaos-mesh.org",
-		ChaosTypeStressMemory:      "stresschaos.chaos-mesh.org",
-		ChaosTypeStressGroupMemory: "stresschaos.chaos-mesh.org",
-		ChaosTypeStressCPU:         "stresschaos.chaos-mesh.org",
-		ChaosTypeStressGroupCPU:    "stresschaos.chaos-mesh.org",
-		ChaosTypePartitionExternal: "networkchaos.chaos-mesh.org",
-		ChaosTypePartitionGroup:    "networkchaos.chaos-mesh.org",
+	ExperimentTypesToCRDNames = map[string]string{
+		"PodChaos":     "podchaos.chaos-mesh.org",
+		"StressChaos":  "stresschaos.chaos-mesh.org",
+		"NetworkChaos": "networkchaos.chaos-mesh.org",
 	}
 )
 

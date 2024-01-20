@@ -24,7 +24,8 @@ const (
 	DefaultPodFailureDuration       = "1m"
 	DefaultNetworkLatencyDuration   = "1m"
 	DefaultNetworkPartitionDuration = "1m"
-	DefaultNetworkPartitionLabel    = "network-partition-group"
+	DefaultNetworkPartitionLabel    = "havoc-network-group"
+	DefaultComponentGroupLabelKey   = "havoc-component-group"
 	DefaultStressMemoryDuration     = "1m"
 	DefaultStressMemoryWorkers      = 1
 	DefaultStressMemoryAmount       = "512MB"
@@ -73,6 +74,7 @@ type Havoc struct {
 	Dir                  string                `toml:"dir"`
 	ExperimentTypes      []string              `toml:"experiment_types"`
 	NamespaceLabelFilter string                `toml:"namespace_label_filter"`
+	ComponentLabelKey    string                `toml:"component_label_key"`
 	IgnoredPods          []string              `toml:"ignore_pods"`
 	IgnoreGroupLabels    []string              `toml:"ignore_group_labels"`
 	Failure              *Failure              `toml:"failure"`
@@ -98,6 +100,7 @@ func DefaultConfig() *Config {
 		Havoc: &Havoc{
 			Dir:               DefaultExperimentsDir,
 			ExperimentTypes:   RecommendedExperimentTypes,
+			ComponentLabelKey: DefaultComponentGroupLabelKey,
 			IgnoreGroupLabels: DefaultIgnoreGroupLabels,
 			Failure: &Failure{
 				Duration:   DefaultPodFailureDuration,

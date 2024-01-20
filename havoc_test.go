@@ -60,46 +60,18 @@ func TestSmokeParsingGenerating(t *testing.T) {
 			resultsDir:   "single_pod",
 		},
 		{
-			name:         "can generate for an arbitrary component group",
+			name:         "can generate for a component group",
 			podsDumpName: "deployment_single_group.json",
 			configName:   "",
 			snapshotDir:  "single_group",
 			resultsDir:   "single_group",
 		},
 		{
-			name:         "can generate for several component groups",
-			podsDumpName: "deployment_two_groups.json",
-			configName:   "",
-			snapshotDir:  "two_groups",
-			resultsDir:   "two_groups",
-		},
-		{
-			name:         "different experiments should be generated for two components groups and some standalone pods",
-			podsDumpName: "deployment_two_groups_and_standalone.json",
-			configName:   "",
-			snapshotDir:  "two_groups_plus_standalone_no_labels",
-			resultsDir:   "two_groups_plus_standalone_no_labels",
-		},
-		{
-			name:         "must count only groups of 2+ pods, even with common keys in labels",
-			podsDumpName: "ignoring_one_pod_group.json",
-			configName:   "",
-			snapshotDir:  "ignoring_one_pod_group",
-			resultsDir:   "ignoring_one_pod_group",
-		},
-		{
-			name:         "can generate 2 component groups, standalones and 4 network groups",
-			podsDumpName: "deployment_crib_1.json",
-			configName:   "crib.toml",
-			snapshotDir:  "default",
-			resultsDir:   "default",
-		},
-		{
-			name:         "full setup + blockchaian rewind head experiments",
+			name:         "standalone pods + component group + network group + blockchain experiments",
 			podsDumpName: "deployment_crib_block_rewind.json",
-			configName:   "crib-block-rewind.toml",
-			snapshotDir:  "blockchain_rewind_head",
-			resultsDir:   "blockchain_rewind_head",
+			configName:   "crib-all.toml",
+			snapshotDir:  "all",
+			resultsDir:   "all",
 		},
 	}
 
@@ -115,7 +87,7 @@ func TestSmokeParsingGenerating(t *testing.T) {
 			require.Equal(t, len(snapshotData), len(generatedData))
 			for i := range snapshotData {
 				// Replace snapshot dir name to match it with expected results path
-				snapshotData[i].Path = strings.ReplaceAll(snapshotData[i].Path, "testdata/snapshot", "testdata/results")
+				snapshotData[i].Path = strings.ReplaceAll(snapshotData[i].Path, SnapshotDir, ResultsDir)
 				require.Equal(t, snapshotData[i], generatedData[i])
 			}
 		})
@@ -123,7 +95,7 @@ func TestSmokeParsingGenerating(t *testing.T) {
 }
 
 /*
-That's just an easy way to enter debug with arbitrary config, or some tweaks, run it manually
+These are just an easy way to enter debug with arbitrary config, or some tweaks, run it manually
 */
 func TestManualGenerate(t *testing.T) {
 	cfg, err := ReadConfig("havoc.toml")

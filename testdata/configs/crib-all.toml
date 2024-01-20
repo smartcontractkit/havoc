@@ -1,6 +1,6 @@
 [havoc]
 # dir is a custom dir you can select, if null monkey will create a new dir
-dir = "experiments-crib-core"
+dir = "testdata/results/all"
 # if you have multiple products inside one namespace this can help to filter by label in k=v format
 namespace_label_filter = ""
 # pods with this prefix will be ignored when generating experiments
@@ -109,9 +109,4 @@ mode = "rand"
 # duration of havoc monkey
 duration = "3m"
 # cooldown between experiments
-cooldown = "5s"
-
-[havoc.grafana]
-# UIDs of dashboard which should be annotated with chaos experiments metadata
-# You can also try to use name as you see it in the top bar of your dashboard but that's not guaranteed to match
-dashboard_uids = ["WaspDebug", "e98b5451-12dc-4a8b-9576-2c0b67ddbd0c"]
+cooldown = "10s"

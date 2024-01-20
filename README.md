@@ -1,5 +1,7 @@
 ## Havoc
 
+DISCLAIMER: This software is not even early Alpha, and still in development, use it on your own risk
+
 Havoc is a tool that introspects your k8s namespace and generates a `ChaosMesh` CRDs suite for you
 
 You can use havoc as a CLI to quickly test hypothesis or run it in "monkey" mode with your load tests and have Grafana annotations
@@ -12,6 +14,18 @@ You can use havoc as a CLI to quickly test hypothesis or run it in "monkey" mode
 
 ### How it works
 Havoc generates groups of experiments based just on your pods and labels found in namespace
+
+In order to test your namespace you need to label pods accordingly:
+`havoc-component-group` is like `app.kubernetes.io/component` (see [recommendation](https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)) but should be set explicitly
+`havoc-network-group` in most cases match `havoc-component-group` but sometimes you need to break network even inside component group, ex. distributed databases
+
+Example:
+```
+      havoc-component-group: node
+      havoc-network-group: nodes-1
+```
+
+Every pod without a group will be marked as `no-group` and experiments will be assigned accordingly
 
 Single pod experiments:
 
@@ -39,12 +53,20 @@ Download latest [release](https://github.com/smartcontractkit/havoc/releases)
 
 You need `kubectl` to available on your machine
 
-If you wish Grafana integration, please set env variables (optional)
+### Grafana integration
+Set env variables
 ```
 HAVOC_LOG_LEVEL={warn,info,debug,trace}
 GRAFANA_URL="..."
 GRAFANA_TOKEN="..."
-DASHBOARD_NAME="..."
+```
+
+Set dashboard names in `havoc.toml`
+```
+[havoc.grafana]
+# UIDs of dashboard which should be annotated with chaos experiments metadata
+# You can also try to use name as you see it in the top bar of your dashboard but that's not guaranteed to match
+dashboard_uids = ["WaspDebug", "e98b5451-12dc-4a8b-9576-2c0b67ddbd0c"]
 ```
 
 ### Manual usage
@@ -101,14 +123,19 @@ Enter the shell
 nix develop
 ```
 
-### Why not to use ChaosMesh UI/API instead of CRDs?
+### Why use it?
 
-`ChaosMesh` UI/API is great, but it has some downsides:
-- No OpenAPI spec, hard to integrate
-- No dynamic generation for a namespace, you need to rely on labels that might change
-- Writing chaos experiments is tedious, in most cases you just copy-paste a lot, or you can forget something
-- Workflows validation is broken
-- Can't mix chaos experiments and API calls
-- No straightforward integration with load testing tools, it's easy to run an experiment, but it's hard to validate it right away without additional code
-- Can't check chaos experiments statuses through API and fail the test, need to use k8s
-- Experiments created from YAML and UI and not always compatible
+#### Without Havoc
+- Check full rendered deployment of your namespace
+- Figure out multiple groups of components you can select by various labels or annotations to form experiments
+- If some components are not selectable - ask DevOps guys to change the manifests
+- Create set of experiments for each chaos experiment type by hand or copy from other product chaos tests
+- Calculate permutations of different groups and calculate composite experiments (network partitioning, latency)
+- Compose huge ChaosMesh Workflow YAML that fails without proper validation errors if group has no match or label is invalid
+- Run the load test, then manually run the chaos suite
+- Check experiment logs to debug with kubectl
+- Figure out which failures are caused by which experiments
+
+#### With Havoc
+- Have simple labelling convention
+- Run chaos testing out-of-the-box with `havoc -c havoc.toml run ${namespace}`

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/samber/lo"
 	"os"
-	"sort"
 	"strings"
 )
 
@@ -15,12 +15,14 @@ const (
 	ErrEmptyNamespace = "no pods found inside namespace, namespace is empty or check your filter"
 )
 
+const (
+	NoGroupKey = "no-group"
+)
+
 type ManifestPart struct {
-	Kind                string
-	Name                string
-	LabelSelectors      []*ActionablePodInfo
-	AnnotationSelectors []*ActionablePodInfo
-	FlattenedManifest   map[string]interface{}
+	Kind              string
+	Name              string
+	FlattenedManifest map[string]interface{}
 }
 
 // PodsListResponse pod list response from kubectl in JSON
@@ -36,58 +38,16 @@ type PodResponse struct {
 	} `json:"metadata"`
 }
 
+type GroupInfo struct {
+	Label        string
+	PodsAffected int
+}
+
 // ActionablePodInfo info about pod and labels for which we can generate a chaos experiment
 type ActionablePodInfo struct {
 	PodName  string
 	Labels   []string
 	HasGroup bool
-}
-
-// splitLabelsIntoGroups splits labels into groups:
-// - all discovered groups that have more than 1 pod
-// - network partitioning groups (can include groups with only 1 pod)
-func (m *Controller) splitLabelsIntoGroups(cfg *Config, onlyPodLabels []string, labelsToPods map[string][]string) (
-	[]string,
-	[]string,
-	map[string][]string,
-	[][]string,
-) {
-	counts := make(map[string]int)
-	seen := make(map[string]bool)
-	for _, ld := range onlyPodLabels {
-		counts[ld]++
-	}
-	groupLabels := make([]string, 0)
-	groupPodNames := make([]string, 0)
-	groupLabelToPods := make(map[string][]string)
-	groupNetworkPartitionLabels := make([]string, 0)
-	for _, ld := range onlyPodLabels {
-		if counts[ld] > 1 && !seen[ld] {
-			if !sliceContainsSubString(ld, cfg.Havoc.IgnoreGroupLabels) && !strings.Contains(ld, m.cfg.Havoc.NetworkPartition.Label) {
-				groupLabels = append(groupLabels, ld)
-				groupLabelToPods[ld] = labelsToPods[ld]
-				groupPodNames = append(groupPodNames, groupLabelToPods[ld]...)
-				L.Info().
-					Str("Label", ld).
-					Int("Count", counts[ld]).
-					Strs("Pods", labelsToPods[ld]).
-					Msg("New group found")
-			}
-		}
-		if strings.Contains(ld, m.cfg.Havoc.NetworkPartition.Label) && !seen[ld] {
-			L.Info().
-				Str("Label", ld).
-				Int("Count", counts[ld]).
-				Strs("Pods", labelsToPods[ld]).
-				Msg("New group found")
-			groupNetworkPartitionLabels = append(groupNetworkPartitionLabels, ld)
-		}
-		seen[ld] = true
-	}
-	sort.Slice(groupLabels, func(i, j int) bool {
-		return groupLabels[i] < groupLabels[j]
-	})
-	return groupLabels, groupPodNames, groupLabelToPods, uniquePairs(groupNetworkPartitionLabels)
 }
 
 func uniquePairs(strings []string) [][]string {
@@ -101,55 +61,72 @@ func uniquePairs(strings []string) [][]string {
 	return pairs
 }
 
-// processPodInfo parses pods call response and returns:
-// pods with all associated labels
-// group labels and count of pods affected
-// TODO: refactor with samber/lo, too complex. Filter, Map, GroupBy..
-func (m *Controller) processPodInfo(cfg *Config, mfp *PodsListResponse) ([]*ActionablePodInfo, []string, [][]string, error) {
+func (m *Controller) processPodInfoLo(plr *PodsListResponse) ([]*PodResponse, []lo.Entry[string, int], [][]string, error) {
 	L.Info().Msg("Processing pods info")
-	validItems := make([]*PodResponse, 0)
-	for _, pi := range mfp.Items {
-		if !sliceContainsSubString(pi.Metadata.Name, m.cfg.Havoc.IgnoredPods) {
-			validItems = append(validItems, pi)
-		}
+	// filtering
+	filteredPods := lo.Filter(plr.Items, func(item *PodResponse, index int) bool {
+		return !sliceContainsSubString(item.Metadata.Name, m.cfg.Havoc.IgnoredPods)
+	})
+	labelsToAllow := append([]string{}, m.cfg.Havoc.ComponentLabelKey)
+	if m.hasNetworkExperiments() {
+		labelsToAllow = append(labelsToAllow, m.cfg.Havoc.NetworkPartition.Label)
 	}
-	mfp.Items = validItems
-	if len(mfp.Items) == 0 {
+	for _, p := range filteredPods {
+		p.Metadata.Labels = lo.PickByKeys(p.Metadata.Labels, labelsToAllow)
+	}
+	if len(filteredPods) == 0 {
 		return nil, nil, nil, errors.New(ErrEmptyNamespace)
 	}
-
-	allPodsDataWithLabels := make([]*ActionablePodInfo, 0)
-	onlyLabels := make([]string, 0)
-	labelsToPods := make(map[string][]string)
-	for _, p := range mfp.Items {
-		api := &ActionablePodInfo{
-			PodName: p.Metadata.Name,
-		}
-		for labelKey, labelValue := range p.Metadata.Labels {
-			l := fmt.Sprintf("'%s': '%s'", labelKey, labelValue)
-			api.Labels = append(api.Labels, l)
-			if !sliceContains(l, m.cfg.Havoc.IgnoreGroupLabels) {
-				if labelsToPods[l] == nil {
-					labelsToPods[l] = make([]string, 0)
-				}
-				labelsToPods[l] = append(labelsToPods[l], p.Metadata.Name)
-			}
-		}
-		allPodsDataWithLabels = append(allPodsDataWithLabels, api)
-		onlyLabels = append(onlyLabels, api.Labels...)
+	// grouping
+	byComponent := lo.GroupBy(filteredPods, func(item *PodResponse) string {
+		key := m.cfg.Havoc.ComponentLabelKey
+		return m.labelSelector(key, item.Metadata.Labels[key])
+	})
+	var byPartition map[string][]*PodResponse
+	if m.hasNetworkExperiments() {
+		byPartition = lo.GroupBy(filteredPods, func(item *PodResponse) string {
+			key := m.cfg.Havoc.NetworkPartition.Label
+			return m.labelSelector(key, item.Metadata.Labels[key])
+		})
 	}
-	groupLabels, groupPodNames, _, networkGroupLabels := m.splitLabelsIntoGroups(cfg, onlyLabels, labelsToPods)
+	componentGroupInfo := lo.MapEntries(byComponent, func(key string, value []*PodResponse) (string, int) {
+		return key, len(value)
+	})
+	componentGroupsInfo := lo.Reject(lo.Entries(componentGroupInfo), func(item lo.Entry[string, int], index int) bool {
+		return item.Key == NoGroupKey
+	})
+	networkGroupsInfo := uniquePairs(lo.Keys(byPartition))
 
-	podsWithoutGroup := make([]*ActionablePodInfo, 0)
-	for _, p := range allPodsDataWithLabels {
-		if !sliceContains(p.PodName, groupPodNames) {
-			L.Info().Str("Pod", p.PodName).Msg("Pod doesn't have a group")
-			podsWithoutGroup = append(podsWithoutGroup, p)
+	m.printPartitions(byComponent, "Component groups found")
+	m.printPartitions(byPartition, "Network groups found")
+	return byComponent[NoGroupKey], componentGroupsInfo, networkGroupsInfo, nil
+}
+
+func (m *Controller) hasNetworkExperiments() bool {
+	if m.cfg.Havoc.NetworkPartition != nil && m.cfg.Havoc.NetworkPartition.Label != "" {
+		return true
+	}
+	return false
+}
+
+func (m *Controller) printPartitions(parts map[string][]*PodResponse, msg string) {
+	for _, p := range parts {
+		for _, pp := range p {
+			L.Info().
+				Str("Name", pp.Metadata.Name).
+				Interface("Labels", pp.Metadata.Labels).
+				Msg(msg)
 		}
 	}
+}
 
-	sort.Slice(allPodsDataWithLabels, func(i, j int) bool { return allPodsDataWithLabels[i].PodName < allPodsDataWithLabels[j].PodName })
-	return podsWithoutGroup, groupLabels, networkGroupLabels, nil
+// labelSelector transforms selector to ChaosMesh CRD format
+func (m *Controller) labelSelector(k, v string) string {
+	if v == "" {
+		return NoGroupKey
+	} else {
+		return fmt.Sprintf("'%s': '%s'", k, v)
+	}
 }
 
 // GetPodsInfo gets info about all the pods in the namespace

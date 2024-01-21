@@ -24,6 +24,7 @@ const (
 	DefaultPodFailureDuration       = "1m"
 	DefaultNetworkLatencyDuration   = "1m"
 	DefaultNetworkPartitionDuration = "1m"
+	DefaultHTTPDuration             = "1m"
 	DefaultNetworkPartitionLabel    = "havoc-network-group"
 	DefaultComponentGroupLabelKey   = "havoc-component-group"
 	DefaultStressMemoryDuration     = "1m"
@@ -84,6 +85,7 @@ type Havoc struct {
 	StressCPU            *StressCPU            `toml:"stress_cpu"`
 	ExternalTargets      *ExternalTargets      `toml:"external_targets"`
 	BlockchainRewindHead *BlockchainRewindHead `toml:"blockchain_rewind_head"`
+	OpenAPI              *OpenAPI              `toml:"openapi"`
 	Monkey               *Monkey               `toml:"monkey"`
 	Grafana              *Grafana              `toml:"grafana"`
 }
@@ -127,6 +129,10 @@ func DefaultConfig() *Config {
 				Duration:        DefaultNetworkPartitionDuration,
 				Label:           DefaultNetworkPartitionLabel,
 				GroupPercentage: DefaultNetworkPartitionGroupPercentage,
+			},
+			OpenAPI: &OpenAPI{
+				Duration:   DefaultHTTPDuration,
+				GroupFixed: DefaultGroupFixed,
 			},
 			Monkey: &Monkey{
 				Duration: DefaultMonkeyDuration,
@@ -244,6 +250,22 @@ type BlockchainRewindHead struct {
 	ExecutorPodPrefix   string  `toml:"executor_pod_prefix"`
 	NodeInternalHTTPURL string  `toml:"node_internal_http_url"`
 	Blocks              []int64 `toml:"blocks"`
+}
+
+type OpenAPI struct {
+	Mapping         map[string]*OpenApiSpecInfo `toml:"mapping"`
+	Duration        string                      `toml:"duration"`
+	GroupPercentage []string                    `toml:"group_percentage"`
+	GroupFixed      []string                    `toml:"group_fixed"`
+}
+
+type OpenApiSpecInfo struct {
+	SpecToPortMappings []*SpecToPort `toml:"spec_to_port"`
+}
+
+type SpecToPort struct {
+	Port int64  `toml:"port"`
+	Path string `toml:"path"`
 }
 
 type Monkey struct {

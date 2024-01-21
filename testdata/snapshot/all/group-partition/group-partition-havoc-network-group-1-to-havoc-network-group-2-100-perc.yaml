@@ -2,14 +2,14 @@
 kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
-  name: group-partition-no-group-to-havoc-network-group-1-100-perc
+  name: group-partition-havoc-network-group-1-to-havoc-network-group-2-100-perc
   namespace: cl-cluster
 spec:
   selector:
     namespaces:
       - cl-cluster
     labelSelectors:
-      no-group
+      'havoc-network-group': '1'
   action: partition
   mode: fixed-percent
   value: '100'
@@ -22,4 +22,4 @@ spec:
       namespaces:
         - cl-cluster
       labelSelectors:
-        'havoc-network-group': '1'
+        'havoc-network-group': '2'

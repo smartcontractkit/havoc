@@ -40,6 +40,7 @@ var (
 		ChaosTypeStressCPU,
 		ChaosTypeStressGroupCPU,
 		ChaosTypePartitionGroup,
+		ChaosTypeHTTP,
 		//ChaosTypePartitionExternal,
 	}
 )
@@ -64,6 +65,57 @@ type CommonExperimentMeta struct {
 		Name      string `yaml:"name"`
 		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
+}
+
+type HTTPExperiment struct {
+	ExperimentName string
+	Metadata       *Metadata
+	Namespace      string
+	Mode           string
+	ModeValue      string
+	Selector       string
+	PodName        string
+	Port           int64
+	Target         string
+	Path           string
+	Method         string
+	Abort          bool
+	Duration       string
+}
+
+func (m HTTPExperiment) String() (string, error) {
+	tpl := `
+kind: HTTPChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  name: {{ .ExperimentName }}
+spec:
+  mode: {{ .Mode }}
+  {{- if .ModeValue }}
+  value: '{{ .ModeValue }}'
+  {{- end }}
+  selector:
+    namespaces:
+      - {{ .Namespace }}
+    {{- if .Selector}}
+    labelSelectors:
+      {{ .Selector }}
+	{{- else}}
+    fieldSelectors:
+      metadata.name: {{ .PodName }}	
+	{{- end}}
+  target: Request
+  port: {{ .Port }}
+  method: {{ .Method }}
+  path: {{ .Path }}
+  abort: {{ .Abort }}
+  duration: {{ .Duration }}
+`
+	return MarshalTemplate(
+		m,
+		uuid.NewString(),
+		tpl,
+	)
 }
 
 type BlockchainRewindHeadExperiment struct {
@@ -484,11 +536,25 @@ func maybeFailAll(e lo.Entry[string, int], origValue string) string {
 	return origValue
 }
 
-func (m *Controller) generate(namespace string, podsInfo []*PodResponse, groupLabels []lo.Entry[string, int], npLabels [][]string) (*ChaosSpecs, error) {
+func (m *Controller) generate(
+	namespace string,
+	oapiSpecs []*OAPISpecData,
+	podsInfo []*PodResponse,
+	groupLabels []lo.Entry[string, int],
+	netLabels [][]string,
+) (*ChaosSpecs, error) {
 	allExperimentsByType := make(map[string]map[string]string)
 	for _, expType := range m.cfg.Havoc.ExperimentTypes {
 		experiments := make(map[string]string)
 		switch expType {
+		case ChaosTypeHTTP:
+			for _, entry := range groupLabels {
+				if _, ok := m.cfg.Havoc.OpenAPI.Mapping[m.groupValueFromLabelSelector(entry.Key)]; ok {
+					if err := m.generateOAPIExperiments(experiments, namespace, entry, oapiSpecs); err != nil {
+						return nil, err
+					}
+				}
+			}
 		case ChaosTypeBlockchainSetHead:
 			for _, pi := range podsInfo {
 				if strings.Contains(pi.Metadata.Name, m.cfg.Havoc.BlockchainRewindHead.ExecutorPodPrefix) {
@@ -528,7 +594,7 @@ func (m *Controller) generate(namespace string, podsInfo []*PodResponse, groupLa
 				experiments[nsAndURLHash] = experiment
 			}
 		case ChaosTypePartitionGroup:
-			for _, pair := range npLabels {
+			for _, pair := range netLabels {
 				for _, groupModeValue := range m.cfg.Havoc.NetworkPartition.GroupPercentage {
 					sanitizedLabel := sanitizeLabel(fmt.Sprintf("%s-to-%s", pair[0], pair[1]))
 					sanitizedLabel = fmt.Sprintf("%s-%s-perc", sanitizedLabel, groupModeValue)
@@ -998,8 +1064,13 @@ func (m *Controller) generateSpecs(namespace string, podListResponse *PodsListRe
 	if err != nil {
 		return nil, nil, err
 	}
+	L.Info().Msg("Processing OpenAPI specs")
+	specs, err := m.ParseOpenAPISpecs()
+	if err != nil {
+		return nil, nil, err
+	}
 	L.Info().Msg("Generating chaos experiments")
-	csp, err := m.generate(namespace, noGroup, componentLabels, networkLabels)
+	csp, err := m.generate(namespace, specs, noGroup, componentLabels, networkLabels)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -40,8 +40,8 @@ experiment_types = [
     "group-memory",
     "group-partition",
     "blockchain_rewind_head",
+    "http"
 ]
-#experiment_types = ["group-partition"]
 
 [havoc.failure]
 # duration of a "failure" experiment
@@ -100,6 +100,16 @@ blocks = [50, 40, 30, 20, 10]
 duration = "10s"
 # URL of external service that'd fail to resolve
 urls = ["www.google.com"]
+
+# you can map OpenAPI 3.0.0 specifications to your component groups, let's say you have
+# component_label_key = "havoc-component-group" and some pods having "havoc-component-group: node"
+[havoc.openapi]
+[havoc.openapi.mapping.node]
+[[havoc.openapi.mapping.node.spec_to_port]]
+# port on which your instances are exposing this API
+port = 8080
+# path to OpenAPI 3.0.0
+path = "testdata/openapi_specs/petshop.yaml"
 
 [havoc.monkey]
 # havoc monkey mode:

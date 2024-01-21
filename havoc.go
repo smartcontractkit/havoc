@@ -3,6 +3,7 @@ package havoc
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -20,6 +21,7 @@ const (
 	ChaosTypeStressGroupCPU    = "group-cpu"
 	ChaosTypePartitionExternal = "external"
 	ChaosTypePartitionGroup    = "group-partition"
+	ChaosTypeHTTP              = "http"
 )
 
 var (
@@ -27,6 +29,7 @@ var (
 		"PodChaos":     "podchaos.chaos-mesh.org",
 		"StressChaos":  "stresschaos.chaos-mesh.org",
 		"NetworkChaos": "networkchaos.chaos-mesh.org",
+		"HTTPChaos":    "httpchaos.chaos-mesh.org",
 	}
 )
 
@@ -67,11 +70,8 @@ func (m *ChaosSpecs) Dump(dir string) error {
 			return err
 		}
 		for expName, expBody := range m.ExperimentsByType[expType] {
-			if err := os.WriteFile(
-				fmt.Sprintf("%s/%s/%s-%s.yaml", dir, expType, expType, expName),
-				[]byte(expBody),
-				os.ModePerm,
-			); err != nil {
+			fname := strings.ToLower(fmt.Sprintf("%s/%s/%s-%s.yaml", dir, expType, expType, expName))
+			if err := os.WriteFile(fname, []byte(expBody), os.ModePerm); err != nil {
 				return err
 			}
 		}

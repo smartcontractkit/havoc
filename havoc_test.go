@@ -18,6 +18,7 @@ var (
 	ResultsDir     = filepath.Join(TestDataDir, "results")
 	DeploymentsDir = filepath.Join(TestDataDir, "deployments")
 	ConfigsDir     = filepath.Join(TestDataDir, "configs")
+	OAPISpecs      = filepath.Join(TestDataDir, "openapi_specs")
 )
 
 func init() {

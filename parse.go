@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/lo"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -95,7 +96,10 @@ func (m *Controller) processPodInfoLo(plr *PodsListResponse) ([]*PodResponse, []
 	componentGroupsInfo := lo.Reject(lo.Entries(componentGroupInfo), func(item lo.Entry[string, int], index int) bool {
 		return item.Key == NoGroupKey
 	})
-	networkGroupsInfo := uniquePairs(lo.Keys(byPartition))
+	byPartition = lo.OmitByKeys(byPartition, []string{NoGroupKey})
+	partKeys := lo.Keys(byPartition)
+	sort.Strings(partKeys)
+	networkGroupsInfo := uniquePairs(partKeys)
 
 	m.printPartitions(byComponent, "Component groups found")
 	m.printPartitions(byPartition, "Network groups found")
@@ -127,6 +131,12 @@ func (m *Controller) labelSelector(k, v string) string {
 	} else {
 		return fmt.Sprintf("'%s': '%s'", k, v)
 	}
+}
+
+// groupValueFromLabelSelector returns just the selector value
+func (m *Controller) groupValueFromLabelSelector(selector string) string {
+	val := strings.Split(selector, ": ")[1]
+	return strings.ReplaceAll(val, "'", "")
 }
 
 // GetPodsInfo gets info about all the pods in the namespace

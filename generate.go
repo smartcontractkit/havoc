@@ -961,20 +961,6 @@ func (m *Controller) ApplyExperiment(exp *NamedExperiment, wait bool) error {
 		if resourceType == "" {
 			return errors.Errorf("%s resource not present in %+v list", exp.Kind, ExperimentTypesToCRDNames)
 		}
-		// we delete only if we wait for experiments, otherwise we don't know if it's safe to delete
-		// or we can't wait for experiment to end
-		defer func() {
-			var out string
-			out, errDefer = ExecCmd(
-				fmt.Sprintf("kubectl get events --field-selector involvedObject.name=%s -o json",
-					exp.Name,
-				))
-			errDefer = eventsForLastMinutes(out, timeOfApplication)
-			_, errDefer = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", exp.Metadata.Namespace, resourceType, exp.Name))
-			if errDefer != nil {
-				L.Error().Err(err).Msg("Error reading events")
-			}
-		}()
 		_, err = ExecCmd(
 			fmt.Sprintf("kubectl wait -n %s %s --field-selector=metadata.name=%s --for condition=AllRecovered=True --timeout %s",
 				exp.Metadata.Namespace,
@@ -984,6 +970,21 @@ func (m *Controller) ApplyExperiment(exp *NamedExperiment, wait bool) error {
 			))
 		if err != nil {
 			return errors.Wrap(err, ErrExperimentTimeout)
+		}
+		out, err := ExecCmd(
+			fmt.Sprintf("kubectl get -n %s events --field-selector involvedObject.name=%s -o json",
+				exp.Metadata.Namespace,
+				exp.Name,
+			))
+		if err != nil {
+			return err
+		}
+		if err = eventsForLastMinutes(out, timeOfApplication); err != nil {
+			return err
+		}
+		_, err = ExecCmd(fmt.Sprintf("kubectl -n %s delete %s %s", exp.Metadata.Namespace, resourceType, exp.Name))
+		if err != nil {
+			return err
 		}
 		L.Info().Msg("Chaos experiment successfully recovered")
 	}

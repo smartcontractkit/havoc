@@ -89,7 +89,9 @@ label = "havoc-network-group"
 # duration of "blockchain" experiment
 duration = "30s"
 # label of executor pod
-executor_pod_prefix = "runner"
+executor_pod_prefix = "geth"
+# executor container name
+executor_container_name = "geth-network"
 # blockchain node internal HTTP URL
 node_internal_http_url = "geth:8544"
 # blocks to rewind from last

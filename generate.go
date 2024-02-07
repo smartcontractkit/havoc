@@ -29,6 +29,10 @@ const (
 	ErrInvalidCustomKind = "invalid custom Kind of experiment"
 )
 
+const (
+	DebugContainerImage = "curlimages/curl:latest"
+)
+
 var (
 	RecommendedExperimentTypes = []string{
 		ChaosTypeFailure,
@@ -119,13 +123,14 @@ spec:
 }
 
 type BlockchainRewindHeadExperiment struct {
-	ExperimentName      string    `yaml:"experimentName"`
-	Metadata            *Metadata `yaml:"metadata"`
-	Namespace           string    `yaml:"namespace"`
-	PodName             string    `yaml:"podName"`
-	ExecutorPodPrefix   string    `yaml:"executorPodPrefix"`
-	NodeInternalHTTPURL string    `yaml:"nodeInternalHTTPURL"`
-	Blocks              int64     `yaml:"blocks"`
+	ExperimentName        string    `yaml:"experimentName"`
+	Metadata              *Metadata `yaml:"metadata"`
+	Namespace             string    `yaml:"namespace"`
+	PodName               string    `yaml:"podName"`
+	ExecutorPodPrefix     string    `yaml:"executorPodPrefix"`
+	ExecutorContainerName string    `yaml:"executorContainerName"`
+	NodeInternalHTTPURL   string    `yaml:"nodeInternalHTTPURL"`
+	Blocks                int64     `yaml:"blocks"`
 }
 
 type Metadata struct {
@@ -140,6 +145,7 @@ name: {{ .ExperimentName }}
 metadata:
   name: {{ .Metadata.Name }}
 podName: {{ .PodName }}
+containerName: {{ .ExecutorContainerName }}
 nodeInternalHTTPURL: {{ .NodeInternalHTTPURL }}
 namespace: {{ .Namespace }}
 blocks: {{ .Blocks }}
@@ -539,6 +545,7 @@ func maybeFailAll(e lo.Entry[string, int], origValue string) string {
 func (m *Controller) generate(
 	namespace string,
 	oapiSpecs []*OAPISpecData,
+	allPodsInfo map[string][]*PodResponse,
 	podsInfo []*PodResponse,
 	groupLabels []lo.Entry[string, int],
 	netLabels [][]string,
@@ -556,23 +563,26 @@ func (m *Controller) generate(
 				}
 			}
 		case ChaosTypeBlockchainSetHead:
-			for _, pi := range podsInfo {
-				if strings.Contains(pi.Metadata.Name, m.cfg.Havoc.BlockchainRewindHead.ExecutorPodPrefix) {
-					for _, b := range m.cfg.Havoc.BlockchainRewindHead.Blocks {
-						name := fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.Metadata.Name, b)
-						experiment, err := BlockchainRewindHeadExperiment{
-							ExperimentName:      name,
-							Metadata:            &Metadata{Name: name},
-							Namespace:           namespace,
-							NodeInternalHTTPURL: m.cfg.Havoc.BlockchainRewindHead.NodeInternalHTTPURL,
-							PodName:             pi.Metadata.Name,
-							Blocks:              b,
-						}.String()
-						if err != nil {
-							return nil, err
+			for _, p := range allPodsInfo {
+				for _, pi := range p {
+					if strings.Contains(pi.Metadata.Name, m.cfg.Havoc.BlockchainRewindHead.ExecutorPodPrefix) {
+						for _, b := range m.cfg.Havoc.BlockchainRewindHead.Blocks {
+							name := fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.Metadata.Name, b)
+							experiment, err := BlockchainRewindHeadExperiment{
+								ExperimentName:        name,
+								Metadata:              &Metadata{Name: name},
+								Namespace:             namespace,
+								NodeInternalHTTPURL:   m.cfg.Havoc.BlockchainRewindHead.NodeInternalHTTPURL,
+								PodName:               pi.Metadata.Name,
+								ExecutorContainerName: m.cfg.Havoc.BlockchainRewindHead.ExecutorContainerName,
+								Blocks:                b,
+							}.String()
+							if err != nil {
+								return nil, err
+							}
+							shortName := fmt.Sprintf("%s-%d", pi.Metadata.Name, b)
+							experiments[shortName] = experiment
 						}
-						shortName := fmt.Sprintf("%s-%d", pi.Metadata.Name, b)
-						experiments[shortName] = experiment
 					}
 				}
 			}
@@ -1012,17 +1022,23 @@ func (m *Controller) ApplyCustomKindChaosFile(exp *NamedExperiment, chaosType st
 			Str("Name", exp.Name).
 			Msg("Applying custom experiment")
 		fmt.Println(string(exp.CRDBytes))
-		lastBlkCommand := fmt.Sprintf(`kubectl exec -n %s %s -- curl -s -X POST -H Content-Type:application/json --data {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":5} %s`,
+		lastBlkCommand := fmt.Sprintf(`kubectl -n %s -it debug %s --image=%s --target=%s -- curl -s -X POST -H Content-Type:application/json --data {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":88} %s`,
 			rewind.Namespace,
 			rewind.PodName,
+			DebugContainerImage,
+			rewind.ExecutorContainerName,
 			rewind.NodeInternalHTTPURL,
 		)
 		out, err := ExecCmd(lastBlkCommand)
 		if err != nil {
 			return err
 		}
+		msg, err := findJSONMsg(out)
+		if err != nil {
+			return err
+		}
 		var res *CurrentBlockResponse
-		if err := json.Unmarshal([]byte(out), &res); err != nil {
+		if err := json.Unmarshal([]byte(msg), &res); err != nil {
 			return err
 		}
 		decimalLastBlock, err := strconv.ParseInt(res.Result[2:], 16, 64)
@@ -1031,9 +1047,11 @@ func (m *Controller) ApplyCustomKindChaosFile(exp *NamedExperiment, chaosType st
 		}
 		moveToBlock := decimalLastBlock - rewind.Blocks
 		moveToBlockHex := strconv.FormatInt(moveToBlock, 16)
-		setHeadCommand := fmt.Sprintf(`kubectl exec -n %s %s -- curl -s -X POST -H Content-Type:application/json --data {"jsonrpc":"2.0","method":"debug_setHead","params":["0x%s"],"id":5} %s`,
+		setHeadCommand := fmt.Sprintf(`kubectl -n %s -it debug %s --image=%s --target=%s -- curl -s -X POST -H Content-Type:application/json --data {"jsonrpc":"2.0","method":"debug_setHead","params":["0x%s"],"id":5} %s`,
 			rewind.Namespace,
 			rewind.PodName,
+			DebugContainerImage,
+			rewind.ExecutorContainerName,
 			moveToBlockHex,
 			rewind.NodeInternalHTTPURL,
 		)
@@ -1045,6 +1063,20 @@ func (m *Controller) ApplyCustomKindChaosFile(exp *NamedExperiment, chaosType st
 		return errors.New(ErrInvalidCustomKind)
 	}
 	return nil
+}
+
+func findJSONMsg(s string) (string, error) {
+	startIndex := strings.Index(s, "{")
+	endIndex := strings.LastIndex(s, "}")
+	if startIndex != -1 && endIndex != -1 {
+		substring := s[startIndex : endIndex+1]
+		L.Debug().
+			Str("Message", substring).
+			Msg("JSON substring response")
+		return substring, nil
+	} else {
+		return "", errors.New("no JSON substring found in response")
+	}
 }
 
 // GenerateSpecs generates specs from namespace, should be used programmatically in tests
@@ -1061,7 +1093,7 @@ func (m *Controller) generateSpecs(namespace string, podListResponse *PodsListRe
 	L.Trace().
 		Interface("PodListResponse", podListResponse).
 		Msg("Found pods")
-	noGroup, componentLabels, networkLabels, err := m.processPodInfoLo(podListResponse)
+	all, noGroup, componentLabels, networkLabels, err := m.processPodInfoLo(podListResponse)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1071,7 +1103,7 @@ func (m *Controller) generateSpecs(namespace string, podListResponse *PodsListRe
 		return nil, nil, err
 	}
 	L.Info().Msg("Generating chaos experiments")
-	csp, err := m.generate(namespace, specs, noGroup, componentLabels, networkLabels)
+	csp, err := m.generate(namespace, specs, all, noGroup, componentLabels, networkLabels)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -246,10 +246,11 @@ type ExternalTargets struct {
 }
 
 type BlockchainRewindHead struct {
-	Duration            string  `toml:"duration"`
-	ExecutorPodPrefix   string  `toml:"executor_pod_prefix"`
-	NodeInternalHTTPURL string  `toml:"node_internal_http_url"`
-	Blocks              []int64 `toml:"blocks"`
+	Duration              string  `toml:"duration"`
+	ExecutorPodPrefix     string  `toml:"executor_pod_prefix"`
+	ExecutorContainerName string  `toml:"executor_container_name"`
+	NodeInternalHTTPURL   string  `toml:"node_internal_http_url"`
+	Blocks                []int64 `toml:"blocks"`
 }
 
 type OpenAPI struct {

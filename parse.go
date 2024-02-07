@@ -62,7 +62,7 @@ func uniquePairs(strings []string) [][]string {
 	return pairs
 }
 
-func (m *Controller) processPodInfoLo(plr *PodsListResponse) ([]*PodResponse, []lo.Entry[string, int], [][]string, error) {
+func (m *Controller) processPodInfoLo(plr *PodsListResponse) (map[string][]*PodResponse, []*PodResponse, []lo.Entry[string, int], [][]string, error) {
 	L.Info().Msg("Processing pods info")
 	// filtering
 	filteredPods := lo.Filter(plr.Items, func(item *PodResponse, index int) bool {
@@ -76,7 +76,7 @@ func (m *Controller) processPodInfoLo(plr *PodsListResponse) ([]*PodResponse, []
 		p.Metadata.Labels = lo.PickByKeys(p.Metadata.Labels, labelsToAllow)
 	}
 	if len(filteredPods) == 0 {
-		return nil, nil, nil, errors.New(ErrEmptyNamespace)
+		return nil, nil, nil, nil, errors.New(ErrEmptyNamespace)
 	}
 	// grouping
 	byComponent := lo.GroupBy(filteredPods, func(item *PodResponse) string {
@@ -103,7 +103,7 @@ func (m *Controller) processPodInfoLo(plr *PodsListResponse) ([]*PodResponse, []
 
 	m.printPartitions(byComponent, "Component groups found")
 	m.printPartitions(byPartition, "Network groups found")
-	return byComponent[NoGroupKey], componentGroupsInfo, networkGroupsInfo, nil
+	return byComponent, byComponent[NoGroupKey], componentGroupsInfo, networkGroupsInfo, nil
 }
 
 func (m *Controller) hasNetworkExperiments() bool {

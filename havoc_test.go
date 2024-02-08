@@ -21,6 +21,23 @@ var (
 	OAPISpecs      = filepath.Join(TestDataDir, "openapi_specs")
 )
 
+var (
+	AllExperimentTypes = []string{
+		ChaosTypeFailure,
+		ChaosTypeLatency,
+		ChaosTypeGroupFailure,
+		ChaosTypeGroupLatency,
+		ChaosTypeStressMemory,
+		ChaosTypeStressGroupMemory,
+		ChaosTypeStressCPU,
+		ChaosTypeStressGroupCPU,
+		ChaosTypePartitionGroup,
+		ChaosTypeHTTP,
+		ChaosTypePartitionExternal,
+		ChaosTypeBlockchainSetHead,
+	}
+)
+
 func init() {
 	InitDefaultLogging()
 }
@@ -81,9 +98,9 @@ func TestSmokeParsingGenerating(t *testing.T) {
 			m, plr := setup(t, tc.podsDumpName, tc.configName, tc.resultsDir)
 			_, _, err := m.generateSpecs(Namespace, plr)
 			require.NoError(t, err)
-			snapshotData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, filepath.Join(SnapshotDir, tc.snapshotDir))
+			snapshotData, err := m.ReadExperimentsFromDir(AllExperimentTypes, filepath.Join(SnapshotDir, tc.snapshotDir))
 			require.NoError(t, err)
-			generatedData, err := m.ReadExperimentsFromDir(RecommendedExperimentTypes, filepath.Join(ResultsDir, tc.resultsDir))
+			generatedData, err := m.ReadExperimentsFromDir(AllExperimentTypes, filepath.Join(ResultsDir, tc.resultsDir))
 			require.NoError(t, err)
 			require.Equal(t, len(snapshotData), len(generatedData))
 			for i := range snapshotData {

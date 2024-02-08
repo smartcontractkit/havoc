@@ -4,7 +4,7 @@ name: blockchain_rewind_head-geth-7f7c9fb6c6-hzdhn-10
 metadata:
   name: blockchain_rewind_head-geth-7f7c9fb6c6-hzdhn-10
 podName: geth-7f7c9fb6c6-hzdhn
-containerName: geth-network
+executorContainerName: geth-network
 nodeInternalHTTPURL: geth:8544
 namespace: cl-cluster
 blocks: 10

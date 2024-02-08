@@ -145,7 +145,7 @@ name: {{ .ExperimentName }}
 metadata:
   name: {{ .Metadata.Name }}
 podName: {{ .PodName }}
-containerName: {{ .ExecutorContainerName }}
+executorContainerName: {{ .ExecutorContainerName }}
 nodeInternalHTTPURL: {{ .NodeInternalHTTPURL }}
 namespace: {{ .Namespace }}
 blocks: {{ .Blocks }}

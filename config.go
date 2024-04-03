@@ -193,6 +193,25 @@ func (c *Config) Validate() []error {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "stress_cpu.load must be set, ex.: \"100\""))
 		}
 	}
+	if c.Havoc.BlockchainRewindHead != nil {
+		if c.Havoc.BlockchainRewindHead.Duration == "" {
+			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "havoc.blockchain_rewind_head.duration must be set, ex.: \"30s\""))
+		}
+		for _, bn := range c.Havoc.BlockchainRewindHead.NodesConfig {
+			if bn.ExecutorPodPrefix == "" {
+				errs = append(errs, errors.Wrap(errors.New(ErrFormat), "havoc.blockchain_rewind_head.nodes.executor_pod_prefix must be set, ex.: \"geth\""))
+			}
+			if bn.ExecutorContainerName == "" {
+				errs = append(errs, errors.Wrap(errors.New(ErrFormat), "havoc.blockchain_rewind_head.nodes.executor_container_name must be set, ex.: \"geth-network\""))
+			}
+			if bn.NodeInternalHTTPURL == "" {
+				errs = append(errs, errors.Wrap(errors.New(ErrFormat), "havoc.blockchain_rewind_head.nodes.node_internal_http_url must be set, ex.: \"geth-1337:8544\""))
+			}
+			if len(bn.Blocks) == 0 {
+				errs = append(errs, errors.Wrap(errors.New(ErrFormat), "havoc.blockchain_rewind_head.nodes.blocks must be set, ex.: \"10\""))
+			}
+		}
+	}
 	if c.Havoc.Monkey != nil {
 		if c.Havoc.Monkey.Mode == "" {
 			errs = append(errs, errors.Wrap(errors.New(ErrFormat), "monkey.mode must be either \"seq\" or \"rand\""))
@@ -246,7 +265,11 @@ type ExternalTargets struct {
 }
 
 type BlockchainRewindHead struct {
-	Duration              string  `toml:"duration"`
+	Duration    string                  `toml:"duration"`
+	NodesConfig []*BlockchainNodeConfig `toml:"nodes"`
+}
+
+type BlockchainNodeConfig struct {
 	ExecutorPodPrefix     string  `toml:"executor_pod_prefix"`
 	ExecutorContainerName string  `toml:"executor_container_name"`
 	NodeInternalHTTPURL   string  `toml:"node_internal_http_url"`

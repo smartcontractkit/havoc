@@ -88,14 +88,26 @@ label = "havoc-network-group"
 [havoc.blockchain_rewind_head]
 # duration of "blockchain" experiment
 duration = "30s"
+
+[[havoc.blockchain_rewind_head.nodes]]
 # label of executor pod
-executor_pod_prefix = "geth"
+executor_pod_prefix = "geth-1337"
 # executor container name
 executor_container_name = "geth-network"
 # blockchain node internal HTTP URL
-node_internal_http_url = "geth:8544"
+node_internal_http_url = "geth-1337:8544"
 # blocks to rewind from last
-blocks = [50, 40, 30, 20, 10]
+blocks = [30, 20, 10]
+
+[[havoc.blockchain_rewind_head.nodes]]
+# label of executor pod
+executor_pod_prefix = "geth-2337"
+# executor container name
+executor_container_name = "geth-network"
+# blockchain node internal HTTP URL
+node_internal_http_url = "geth-2337:8544"
+# blocks to rewind from last
+blocks = [30, 20, 10]
 
 [havoc.external_targets]
 # duration of "external" experiment

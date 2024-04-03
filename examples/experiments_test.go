@@ -28,3 +28,14 @@ func TestMyLoad(t *testing.T) {
 	errs := monkey.Stop()
 	require.Len(t, errs, 0)
 }
+
+func TestCodeRun(t *testing.T) {
+	cfg, err := havoc.ReadConfig("../havoc.toml")
+	require.NoError(t, err)
+	c, err := havoc.NewController(cfg)
+	require.NoError(t, err)
+	nexp, err := havoc.NewNamedExperiment("../experiments-crib-core/failure/failure-app-node-1-bootstrap-69fb558d9-s7npw.yaml")
+	require.NoError(t, err)
+	err = c.ApplyAndAnnotate(nexp)
+	require.NoError(t, err)
+}

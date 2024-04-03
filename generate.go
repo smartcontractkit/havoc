@@ -565,23 +565,25 @@ func (m *Controller) generate(
 		case ChaosTypeBlockchainSetHead:
 			for _, p := range allPodsInfo {
 				for _, pi := range p {
-					if strings.Contains(pi.Metadata.Name, m.cfg.Havoc.BlockchainRewindHead.ExecutorPodPrefix) {
-						for _, b := range m.cfg.Havoc.BlockchainRewindHead.Blocks {
-							name := fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.Metadata.Name, b)
-							experiment, err := BlockchainRewindHeadExperiment{
-								ExperimentName:        name,
-								Metadata:              &Metadata{Name: name},
-								Namespace:             namespace,
-								NodeInternalHTTPURL:   m.cfg.Havoc.BlockchainRewindHead.NodeInternalHTTPURL,
-								PodName:               pi.Metadata.Name,
-								ExecutorContainerName: m.cfg.Havoc.BlockchainRewindHead.ExecutorContainerName,
-								Blocks:                b,
-							}.String()
-							if err != nil {
-								return nil, err
+					for _, nodeCfg := range m.cfg.Havoc.BlockchainRewindHead.NodesConfig {
+						if strings.Contains(pi.Metadata.Name, nodeCfg.ExecutorPodPrefix) {
+							for _, b := range nodeCfg.Blocks {
+								name := fmt.Sprintf("%s-%s-%d", ChaosTypeBlockchainSetHead, pi.Metadata.Name, b)
+								experiment, err := BlockchainRewindHeadExperiment{
+									ExperimentName:        name,
+									Metadata:              &Metadata{Name: name},
+									Namespace:             namespace,
+									NodeInternalHTTPURL:   nodeCfg.NodeInternalHTTPURL,
+									PodName:               pi.Metadata.Name,
+									ExecutorContainerName: nodeCfg.ExecutorContainerName,
+									Blocks:                b,
+								}.String()
+								if err != nil {
+									return nil, err
+								}
+								shortName := fmt.Sprintf("%s-%d", pi.Metadata.Name, b)
+								experiments[shortName] = experiment
 							}
-							shortName := fmt.Sprintf("%s-%d", pi.Metadata.Name, b)
-							experiments[shortName] = experiment
 						}
 					}
 				}

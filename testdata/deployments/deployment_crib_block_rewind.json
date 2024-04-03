@@ -168,7 +168,20 @@
     },
     {
       "metadata": {
-        "name": "geth-7f7c9fb6c6-hzdhn",
+        "name": "geth-1337-7f7c9fb6c6-hzdhn",
+        "labels": {
+          "app": "geth",
+          "havoc-component-group": "blockchain",
+          "havoc-network-group": "blockchain",
+          "intents.otterize.com/server": "geth-cl-cluster-331d92",
+          "pod-template-hash": "7f7c9fb6c6",
+          "release": "app"
+        }
+      }
+    },
+    {
+      "metadata": {
+        "name": "geth-2337-7f7c9fb6c6-hzdhn",
         "labels": {
           "app": "geth",
           "havoc-component-group": "blockchain",

@@ -1,7 +1,6 @@
 package k8schaos
 
 import (
-	"os"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -11,14 +10,8 @@ type ChaosLogger struct {
 	logger zerolog.Logger
 }
 
-func NewChaosLogger() *ChaosLogger {
-	return &ChaosLogger{
-		logger: CreateLogger(LoggerConfig{
-			LogOutput: os.Getenv("CHAOS_LOG_OUTPUT"),
-			LogLevel:  os.Getenv("CHAOS_LOG_LEVEL"),
-			LogType:   "chaos",
-		}),
-	}
+func NewChaosLogger(logger zerolog.Logger) *ChaosLogger {
+	return &ChaosLogger{logger: logger}
 }
 
 func (l ChaosLogger) OnChaosCreated(chaos Chaos) {
@@ -113,7 +106,7 @@ func (l ChaosLogger) OnScheduleDeleted(schedule Schedule) {
 		Msg("Chaos schedule deleted")
 }
 
-func (l *ChaosLogger) commonChaosLog(logLevel string, chaos Chaos) *zerolog.Event {
+func (l ChaosLogger) commonChaosLog(logLevel string, chaos Chaos) *zerolog.Event {
 	// Create a base event based on the dynamic log level
 	var event *zerolog.Event
 	switch logLevel {

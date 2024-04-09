@@ -58,9 +58,8 @@ func NewChaos(opts ChaosOpts) (*Chaos, error) {
 	if opts.Object == nil {
 		return nil, errors.New("chaos object is required")
 	}
-	// Use default logger if none is provided
 	if opts.Logger == nil {
-		opts.Logger = &Logger
+		return nil, errors.New("logger is required")
 	}
 
 	return &Chaos{
@@ -290,52 +289,37 @@ func (c *Chaos) GetChaosKind() string {
 }
 
 func (c *Chaos) GetChaosStatus() (*v1alpha1.ChaosStatus, error) {
-	net, ok := c.Object.(*v1alpha1.NetworkChaos)
-	if ok {
-		return net.GetStatus(), nil
+	switch obj := c.Object.(type) {
+	case *v1alpha1.NetworkChaos:
+		return obj.GetStatus(), nil
+	case *v1alpha1.IOChaos:
+		return obj.GetStatus(), nil
+	case *v1alpha1.StressChaos:
+		return obj.GetStatus(), nil
+	case *v1alpha1.PodChaos:
+		return obj.GetStatus(), nil
+	case *v1alpha1.HTTPChaos:
+		return obj.GetStatus(), nil
+	default:
+		return nil, fmt.Errorf("could not get chaos status for %s", c.GetChaosKind())
 	}
-	io, ok := c.Object.(*v1alpha1.IOChaos)
-	if ok {
-		return io.GetStatus(), nil
-	}
-	stress, ok := c.Object.(*v1alpha1.StressChaos)
-	if ok {
-		return stress.GetStatus(), nil
-	}
-	podChaos, ok := c.Object.(*v1alpha1.PodChaos)
-	if ok {
-		return podChaos.GetStatus(), nil
-	}
-	httpChaos, ok := c.Object.(*v1alpha1.HTTPChaos)
-	if ok {
-		return httpChaos.GetStatus(), nil
-	}
-	return nil, fmt.Errorf("could not get chaos status for %s", c.GetChaosKind())
 }
 
 func (c *Chaos) GetExperimentStatus() (v1alpha1.ExperimentStatus, error) {
-	networkChaos, ok := c.Object.(*v1alpha1.NetworkChaos)
-	if ok {
-		return networkChaos.Status.Experiment, nil
+	switch obj := c.Object.(type) {
+	case *v1alpha1.NetworkChaos:
+		return obj.Status.Experiment, nil
+	case *v1alpha1.IOChaos:
+		return obj.Status.Experiment, nil
+	case *v1alpha1.StressChaos:
+		return obj.Status.Experiment, nil
+	case *v1alpha1.PodChaos:
+		return obj.Status.Experiment, nil
+	case *v1alpha1.HTTPChaos:
+		return obj.Status.Experiment, nil
+	default:
+		return v1alpha1.ExperimentStatus{}, fmt.Errorf("could not experiment status for object: %v", c.Object)
 	}
-	ioChaos, ok := c.Object.(*v1alpha1.IOChaos)
-	if ok {
-		return ioChaos.Status.Experiment, nil
-	}
-	stressChaos, ok := c.Object.(*v1alpha1.StressChaos)
-	if ok {
-		return stressChaos.Status.Experiment, nil
-	}
-	podChaos, ok := c.Object.(*v1alpha1.PodChaos)
-	if ok {
-		return podChaos.Status.Experiment, nil
-	}
-	httpChaos, ok := c.Object.(*v1alpha1.HTTPChaos)
-	if ok {
-		return httpChaos.Status.Experiment, nil
-	}
-
-	return v1alpha1.ExperimentStatus{}, fmt.Errorf("could not experiment status for object: %v", c.Object)
 }
 
 func ChaosObjectExists(object client.Object, c client.Client) (bool, error) {
@@ -541,7 +525,10 @@ func (c *Chaos) monitorStatus(ctx context.Context) {
 					c.endTime = time.Now()
 					c.notifyListeners("finished", nil)
 					// Delete the chaos object when it finishes
-					c.Delete(context.Background())
+					err := c.Delete(context.Background())
+					if err != nil {
+						c.logger.Error().Err(err).Msg("failed to delete chaos object")
+					}
 				}
 			}
 		}

@@ -16,10 +16,11 @@ type SingleLineGrafanaAnnotator struct {
 	logger       zerolog.Logger
 }
 
-func NewSingleLineGrafanaAnnotator(grafanaURL, grafanaToken, dashboardUID string) *SingleLineGrafanaAnnotator {
+func NewSingleLineGrafanaAnnotator(grafanaURL, grafanaToken, dashboardUID string, logger zerolog.Logger) *SingleLineGrafanaAnnotator {
 	return &SingleLineGrafanaAnnotator{
 		client:       grafana.NewGrafanaClient(grafanaURL, grafanaToken),
 		dashboardUID: dashboardUID,
+		logger:       logger,
 	}
 }
 

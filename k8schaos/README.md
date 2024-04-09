@@ -30,6 +30,10 @@ logger := k8schaos.NewChaosLogger()
 chaos.AddListener(logger)
 ```
 
+### Default package logger
+
+k8schaos/logger.go contains default `Logger` instance for the package.
+
 #### Visual Monitoring with Grafana Annotations
 `SingleLineGrafanaAnnotator` is a `ChaosListener` that annotates Grafana dashboards with chaos experiment events. This visual representation helps correlate chaos events with their effects on system metrics and logs.
 

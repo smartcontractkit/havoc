@@ -6,6 +6,7 @@ import (
 
 	"github.com/chaos-mesh/chaos-mesh/api/v1alpha1"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,6 +29,39 @@ type Schedule struct {
 	cancelMonitor context.CancelFunc
 	startTime     time.Time
 	endTime       time.Time
+	logger        *zerolog.Logger
+}
+
+type ScheduleOpts struct {
+	Object      *v1alpha1.Schedule
+	Description string
+	DelayCreate time.Duration
+	Duration    time.Duration
+	Client      client.Client
+	Listeners   []ChaosListener
+	Logger      *zerolog.Logger
+}
+
+func NewSchedule(opts ScheduleOpts) (*Schedule, error) {
+	if opts.Client == nil {
+		return nil, errors.New("client is required")
+	}
+	if opts.Object == nil {
+		return nil, errors.New("chaos object is required")
+	}
+	if opts.Logger == nil {
+		return nil, errors.New("logger is required")
+	}
+
+	return &Schedule{
+		Object:      opts.Object,
+		Description: opts.Description,
+		DelayCreate: opts.DelayCreate,
+		Duration:    opts.Duration,
+		Client:      opts.Client,
+		listeners:   opts.Listeners,
+		logger:      opts.Logger,
+	}, nil
 }
 
 // Create initiates a delayed creation of a chaos object, respecting context cancellation and deletion requests.
@@ -137,11 +171,17 @@ func (s *Schedule) createNow(ctx context.Context) {
 			if !deleteTimer.Stop() {
 				<-deleteTimer.C // Drain the timer if it already fired
 			}
-			s.Delete(context.Background())
+			err := s.Delete(context.Background())
+			if err != nil {
+				s.logger.Error().Err(err).Msg("failed to delete chaos object")
+			}
 			close(done)
 		case <-deleteTimer.C:
 			// Duration elapsed, delete the chaos object
-			s.Delete(context.Background())
+			err := s.Delete(context.Background())
+			if err != nil {
+				s.logger.Error().Err(err).Msg("failed to delete chaos object")
+			}
 			close(done)
 		}
 	}()

@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// WaitForAllChaosRunning waits for all chaos experiments to be running
 func WaitForAllChaosRunning(chaosObjects []*Chaos, timeoutDuration time.Duration) error {
 	timeout := time.NewTimer(timeoutDuration)
 	defer timeout.Stop()

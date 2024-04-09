@@ -130,7 +130,10 @@ func (c *Chaos) createNow(ctx context.Context) {
 }
 
 func (c *Chaos) Pause(ctx context.Context) error {
-	c.updateChaosObject(ctx)
+	err := c.updateChaosObject(ctx)
+	if err != nil {
+		return errors.Wrap(err, "could not update the chaos object")
+	}
 
 	annotations := c.Object.GetAnnotations()
 	if annotations == nil {
@@ -139,7 +142,7 @@ func (c *Chaos) Pause(ctx context.Context) error {
 	annotations[v1alpha1.PauseAnnotationKey] = strconv.FormatBool(true)
 	c.Object.SetAnnotations(annotations)
 
-	err := c.Client.Update(context.Background(), c.Object)
+	err = c.Client.Update(context.Background(), c.Object)
 	if err != nil {
 		return errors.Wrap(err, "could not update the annotation to set the chaos experiment into pause state")
 	}
@@ -162,7 +165,10 @@ func (c *Chaos) Delete(ctx context.Context) error {
 
 	// If the chaos was running or paused, update the status and notify listeners
 	if c.Status == StatusPaused || c.Status == StatusRunning {
-		c.updateChaosObject(ctx)
+		err := c.updateChaosObject(ctx)
+		if err != nil {
+			return errors.Wrap(err, "could not update the chaos object")
+		}
 		c.Status = StatusFinished
 		c.endTime = time.Now()
 		c.notifyListeners("finished", nil)
@@ -264,28 +270,20 @@ func (c *Chaos) GetChaosEvents() (*corev1.EventList, error) {
 }
 
 func (c *Chaos) GetChaosKind() string {
-	_, ok := c.Object.(*v1alpha1.NetworkChaos)
-	if ok {
+	switch c.Object.(type) {
+	case *v1alpha1.NetworkChaos:
 		return "NetworkChaos"
-	}
-	_, ok = c.Object.(*v1alpha1.IOChaos)
-	if ok {
+	case *v1alpha1.IOChaos:
 		return "IOChaos"
-	}
-	_, ok = c.Object.(*v1alpha1.StressChaos)
-	if ok {
+	case *v1alpha1.StressChaos:
 		return "StressChaos"
-	}
-	_, ok = c.Object.(*v1alpha1.PodChaos)
-	if ok {
+	case *v1alpha1.PodChaos:
 		return "PodChaos"
-	}
-	_, ok = c.Object.(*v1alpha1.HTTPChaos)
-	if ok {
+	case *v1alpha1.HTTPChaos:
 		return "HTTPChaos"
+	default:
+		panic(fmt.Sprintf("could not get chaos kind for object: %v", c.Object))
 	}
-
-	panic(fmt.Sprintf("could not get chaos kind for object: %v", c.Object))
 }
 
 func (c *Chaos) GetChaosStatus() (*v1alpha1.ChaosStatus, error) {
@@ -394,7 +392,6 @@ func (c *Chaos) updateChaosObject(ctx context.Context) error {
 
 func isConditionTrue(status *v1alpha1.ChaosStatus, expectedCondition v1alpha1.ChaosCondition) bool {
 	if status == nil {
-		// c.loggerog.Info().Msg("experiment is missing status information")
 		return false
 	}
 

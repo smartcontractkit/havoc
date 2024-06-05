@@ -6,14 +6,14 @@ import (
 )
 
 // WaitForAllChaosRunning waits for all chaos experiments to be running
-func WaitForAllChaosRunning(chaosObjects []*Chaos, timeoutDuration time.Duration) error {
+func WaitForAllChaosRunning(chaosObjects []*K8sChaos, timeoutDuration time.Duration) error {
 	timeout := time.NewTimer(timeoutDuration)
 	defer timeout.Stop()
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	runningStatus := make(map[*Chaos]bool)
+	runningStatus := make(map[*K8sChaos]bool)
 	for _, chaos := range chaosObjects {
 		runningStatus[chaos] = false
 	}

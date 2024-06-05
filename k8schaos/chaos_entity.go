@@ -14,7 +14,7 @@ type ChaosEntity interface {
 	// Delete removes the chaos object from Kubernetes.
 	Delete(ctx context.Context) error
 	// Registers a listener to receive updates about the chaos object's lifecycle.
-	AddListener(listener ChaosListener)
+	AddListener(listener K8sChaosListener)
 
 	GetObject() client.Object
 	GetChaosName() string

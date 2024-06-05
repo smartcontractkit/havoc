@@ -14,17 +14,17 @@ func NewChaosLogger(logger zerolog.Logger) *ChaosLogger {
 	return &ChaosLogger{logger: logger}
 }
 
-func (l ChaosLogger) OnChaosCreated(chaos Chaos) {
+func (l ChaosLogger) OnChaosCreated(chaos K8sChaos) {
 	l.commonChaosLog("info", chaos).Msg("Chaos created")
 }
 
-func (l ChaosLogger) OnChaosCreationFailed(chaos Chaos, reason error) {
+func (l ChaosLogger) OnChaosCreationFailed(chaos K8sChaos, reason error) {
 	l.commonChaosLog("error", chaos).
 		Err(reason).
 		Msg("Failed to create chaos object")
 }
 
-func (l ChaosLogger) OnChaosStarted(chaos Chaos) {
+func (l ChaosLogger) OnChaosStarted(chaos K8sChaos) {
 	experiment, _ := chaos.GetExperimentStatus()
 
 	l.commonChaosLog("info", chaos).
@@ -33,17 +33,17 @@ func (l ChaosLogger) OnChaosStarted(chaos Chaos) {
 		Msg("Chaos started")
 }
 
-func (l ChaosLogger) OnChaosPaused(chaos Chaos) {
+func (l ChaosLogger) OnChaosPaused(chaos K8sChaos) {
 	l.commonChaosLog("info", chaos).
 		Msg("Chaos paused")
 }
 
-func (l ChaosLogger) OnChaosEnded(chaos Chaos) {
+func (l ChaosLogger) OnChaosEnded(chaos K8sChaos) {
 	l.commonChaosLog("info", chaos).
 		Msg("Chaos ended")
 }
 
-func (l ChaosLogger) OnChaosDeleted(chaos Chaos) {
+func (l ChaosLogger) OnChaosDeleted(chaos K8sChaos) {
 	l.commonChaosLog("info", chaos).
 		Msg("Chaos deleted")
 }
@@ -54,7 +54,7 @@ type SimplifiedEvent struct {
 	Message       string
 }
 
-func (l ChaosLogger) OnChaosStatusUnknown(chaos Chaos) {
+func (l ChaosLogger) OnChaosStatusUnknown(chaos K8sChaos) {
 	status, _ := chaos.GetExperimentStatus()
 	events, _ := chaos.GetChaosEvents()
 
@@ -106,7 +106,7 @@ func (l ChaosLogger) OnScheduleDeleted(schedule Schedule) {
 		Msg("Chaos schedule deleted")
 }
 
-func (l ChaosLogger) commonChaosLog(logLevel string, chaos Chaos) *zerolog.Event {
+func (l ChaosLogger) commonChaosLog(logLevel string, chaos K8sChaos) *zerolog.Event {
 	// Create a base event based on the dynamic log level
 	var event *zerolog.Event
 	switch logLevel {

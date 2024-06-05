@@ -25,7 +25,7 @@ type Schedule struct {
 	Duration      time.Duration // Duration for which the chaos object should exist
 	Status        ChaosStatus
 	Client        client.Client
-	listeners     []ChaosListener
+	listeners     []K8sChaosListener
 	cancelMonitor context.CancelFunc
 	startTime     time.Time
 	endTime       time.Time
@@ -38,7 +38,7 @@ type ScheduleOpts struct {
 	DelayCreate time.Duration
 	Duration    time.Duration
 	Client      client.Client
-	Listeners   []ChaosListener
+	Listeners   []K8sChaosListener
 	Logger      *zerolog.Logger
 }
 
@@ -107,7 +107,7 @@ func (s *Schedule) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Schedule) AddListener(listener ChaosListener) {
+func (s *Schedule) AddListener(listener K8sChaosListener) {
 	s.listeners = append(s.listeners, listener)
 }
 

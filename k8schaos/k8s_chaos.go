@@ -15,13 +15,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Chaos struct {
+type K8sChaos struct {
 	Object        client.Object
 	Description   string
 	DelayCreate   time.Duration // Delay before creating the chaos object
 	Status        ChaosStatus
 	Client        client.Client
-	listeners     []ChaosListener
+	listeners     []K8sChaosListener
 	cancelMonitor context.CancelFunc
 	startTime     time.Time
 	endTime       time.Time
@@ -42,16 +42,16 @@ const (
 	StatusUnknown        ChaosStatus = "unknown" // For any state that doesn't match the above
 )
 
-type ChaosOpts struct {
+type K8sChaosOpts struct {
 	Object      client.Object
 	Description string
 	DelayCreate time.Duration
 	Client      client.Client
-	Listeners   []ChaosListener
+	Listeners   []K8sChaosListener
 	Logger      *zerolog.Logger
 }
 
-func NewChaos(opts ChaosOpts) (*Chaos, error) {
+func NewK8sChaos(opts K8sChaosOpts) (*K8sChaos, error) {
 	if opts.Client == nil {
 		return nil, errors.New("client is required")
 	}
@@ -62,7 +62,7 @@ func NewChaos(opts ChaosOpts) (*Chaos, error) {
 		return nil, errors.New("logger is required")
 	}
 
-	return &Chaos{
+	return &K8sChaos{
 		Object:      opts.Object,
 		Description: opts.Description,
 		DelayCreate: opts.DelayCreate,
@@ -74,7 +74,7 @@ func NewChaos(opts ChaosOpts) (*Chaos, error) {
 
 // Create initiates a delayed creation of a chaos object, respecting context cancellation and deletion requests.
 // It uses a timer based on `DelayCreate` and calls `create` method upon expiration unless preempted by deletion.
-func (c *Chaos) Create(ctx context.Context) {
+func (c *K8sChaos) Create(ctx context.Context) {
 	done := make(chan struct{})
 
 	// Create the timer with the delay to create the chaos object
@@ -98,7 +98,7 @@ func (c *Chaos) Create(ctx context.Context) {
 	}()
 }
 
-func (c *Chaos) Update(ctx context.Context) error {
+func (c *K8sChaos) Update(ctx context.Context) error {
 	// Modify the resource
 	// For example, adding or updating an annotation
 	annotations := c.Object.GetAnnotations()
@@ -116,7 +116,7 @@ func (c *Chaos) Update(ctx context.Context) error {
 }
 
 // createNow is a private method that encapsulates the chaos object creation logic.
-func (c *Chaos) createNow(ctx context.Context) {
+func (c *K8sChaos) createNow(ctx context.Context) {
 	if err := c.Client.Create(ctx, c.Object); err != nil {
 		c.notifyListeners(string(StatusCreationFailed), err)
 		return
@@ -129,7 +129,7 @@ func (c *Chaos) createNow(ctx context.Context) {
 	go c.monitorStatus(monitorCtx)
 }
 
-func (c *Chaos) Pause(ctx context.Context) error {
+func (c *K8sChaos) Pause(ctx context.Context) error {
 	err := c.updateChaosObject(ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not update the chaos object")
@@ -151,13 +151,13 @@ func (c *Chaos) Pause(ctx context.Context) error {
 	return nil
 }
 
-func (c *Chaos) Resume(ctx context.Context) error {
+func (c *K8sChaos) Resume(ctx context.Context) error {
 	// Implement resume logic here
 	c.notifyListeners("resumed", nil)
 	return nil
 }
 
-func (c *Chaos) Delete(ctx context.Context) error {
+func (c *K8sChaos) Delete(ctx context.Context) error {
 	// Cancel the monitoring goroutine
 	if c.cancelMonitor != nil {
 		c.cancelMonitor()
@@ -185,19 +185,19 @@ func (c *Chaos) Delete(ctx context.Context) error {
 	return nil
 }
 
-func (c *Chaos) GetObject() client.Object {
+func (c *K8sChaos) GetObject() client.Object {
 	return c.Object
 }
 
-func (c *Chaos) GetChaosName() string {
+func (c *K8sChaos) GetChaosName() string {
 	return c.Object.GetName()
 }
 
-func (c *Chaos) GetChaosDescription() string {
+func (c *K8sChaos) GetChaosDescription() string {
 	return c.Description
 }
 
-func (c *Chaos) GetChaosTypeStr() string {
+func (c *K8sChaos) GetChaosTypeStr() string {
 	switch c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		return "NetworkChaos"
@@ -214,7 +214,7 @@ func (c *Chaos) GetChaosTypeStr() string {
 	}
 }
 
-func (c *Chaos) GetChaosSpec() interface{} {
+func (c *K8sChaos) GetChaosSpec() interface{} {
 	switch spec := c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		return spec.Spec
@@ -231,7 +231,7 @@ func (c *Chaos) GetChaosSpec() interface{} {
 	}
 }
 
-func (c *Chaos) GetChaosDuration() (time.Duration, error) {
+func (c *K8sChaos) GetChaosDuration() (time.Duration, error) {
 	var durationStr *string
 	switch spec := c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
@@ -256,7 +256,7 @@ func (c *Chaos) GetChaosDuration() (time.Duration, error) {
 	return duration, nil
 }
 
-func (c *Chaos) GetChaosEvents() (*corev1.EventList, error) {
+func (c *K8sChaos) GetChaosEvents() (*corev1.EventList, error) {
 	listOpts := []client.ListOption{
 		client.InNamespace(c.Object.GetNamespace()),
 		client.MatchingFields{"involvedObject.name": c.Object.GetName(), "involvedObject.kind": c.GetChaosKind()},
@@ -269,7 +269,7 @@ func (c *Chaos) GetChaosEvents() (*corev1.EventList, error) {
 	return events, nil
 }
 
-func (c *Chaos) GetChaosKind() string {
+func (c *K8sChaos) GetChaosKind() string {
 	switch c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		return "NetworkChaos"
@@ -286,7 +286,7 @@ func (c *Chaos) GetChaosKind() string {
 	}
 }
 
-func (c *Chaos) GetChaosStatus() (*v1alpha1.ChaosStatus, error) {
+func (c *K8sChaos) GetChaosStatus() (*v1alpha1.ChaosStatus, error) {
 	switch obj := c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		return obj.GetStatus(), nil
@@ -303,7 +303,7 @@ func (c *Chaos) GetChaosStatus() (*v1alpha1.ChaosStatus, error) {
 	}
 }
 
-func (c *Chaos) GetExperimentStatus() (v1alpha1.ExperimentStatus, error) {
+func (c *K8sChaos) GetExperimentStatus() (v1alpha1.ExperimentStatus, error) {
 	switch obj := c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		return obj.Status.Experiment, nil
@@ -339,7 +339,7 @@ func ChaosObjectExists(object client.Object, c client.Client) (bool, error) {
 	}
 }
 
-func (c *Chaos) updateChaosObject(ctx context.Context) error {
+func (c *K8sChaos) updateChaosObject(ctx context.Context) error {
 	switch obj := c.Object.(type) {
 	case *v1alpha1.NetworkChaos:
 		var objOut = &v1alpha1.NetworkChaos{}
@@ -403,22 +403,22 @@ func isConditionTrue(status *v1alpha1.ChaosStatus, expectedCondition v1alpha1.Ch
 	return false
 }
 
-func (c *Chaos) AddListener(listener ChaosListener) {
+func (c *K8sChaos) AddListener(listener K8sChaosListener) {
 	c.listeners = append(c.listeners, listener)
 }
 
 // GetStartTime returns the time when the chaos experiment started
-func (c *Chaos) GetStartTime() time.Time {
+func (c *K8sChaos) GetStartTime() time.Time {
 	return c.startTime
 }
 
 // GetEndTime returns the time when the chaos experiment ended
-func (c *Chaos) GetEndTime() time.Time {
+func (c *K8sChaos) GetEndTime() time.Time {
 	return c.endTime
 }
 
 // GetExpectedEndTime returns the time when the chaos experiment is expected to end
-func (c *Chaos) GetExpectedEndTime() (time.Time, error) {
+func (c *K8sChaos) GetExpectedEndTime() (time.Time, error) {
 	duration, err := c.GetChaosDuration()
 	if err != nil {
 		return time.Time{}, err
@@ -428,11 +428,11 @@ func (c *Chaos) GetExpectedEndTime() (time.Time, error) {
 
 type ChaosEventDetails struct {
 	Event string
-	Chaos *Chaos
+	Chaos *K8sChaos
 	Error error
 }
 
-func (c *Chaos) notifyListeners(event string, err error) {
+func (c *K8sChaos) notifyListeners(event string, err error) {
 	for _, listener := range c.listeners {
 		switch event {
 		case "created":
@@ -453,7 +453,7 @@ func (c *Chaos) notifyListeners(event string, err error) {
 	}
 }
 
-func (c *Chaos) monitorStatus(ctx context.Context) {
+func (c *K8sChaos) monitorStatus(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 

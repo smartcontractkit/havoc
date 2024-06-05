@@ -26,10 +26,10 @@ func NewRangeGrafanaAnnotator(grafanaURL, grafanaToken, dashboardUID string, log
 	}
 }
 
-func (l RangeGrafanaAnnotator) OnChaosCreated(chaos Chaos) {
+func (l RangeGrafanaAnnotator) OnChaosCreated(chaos K8sChaos) {
 }
 
-func (l RangeGrafanaAnnotator) OnChaosStarted(chaos Chaos) {
+func (l RangeGrafanaAnnotator) OnChaosStarted(chaos K8sChaos) {
 	experiment, _ := chaos.GetExperimentStatus()
 	duration, _ := chaos.GetChaosDuration()
 
@@ -79,10 +79,10 @@ func (l RangeGrafanaAnnotator) OnChaosStarted(chaos Chaos) {
 	l.chaosMap[chaos.GetChaosName()] = res.ID
 }
 
-func (l RangeGrafanaAnnotator) OnChaosPaused(chaos Chaos) {
+func (l RangeGrafanaAnnotator) OnChaosPaused(chaos K8sChaos) {
 }
 
-func (l RangeGrafanaAnnotator) OnChaosEnded(chaos Chaos) {
+func (l RangeGrafanaAnnotator) OnChaosEnded(chaos K8sChaos) {
 	annotationID, exists := l.chaosMap[chaos.GetChaosName()]
 	if !exists {
 		l.logger.Error().Msgf("No Grafana annotation ID found for Chaos: %s", chaos.GetChaosName())
@@ -147,7 +147,7 @@ func (l RangeGrafanaAnnotator) OnChaosEnded(chaos Chaos) {
 	l.chaosMap[chaos.GetChaosName()] = res.ID
 }
 
-func (l RangeGrafanaAnnotator) OnChaosStatusUnknown(chaos Chaos) {
+func (l RangeGrafanaAnnotator) OnChaosStatusUnknown(chaos K8sChaos) {
 }
 
 func (l RangeGrafanaAnnotator) OnScheduleCreated(chaos Schedule) {

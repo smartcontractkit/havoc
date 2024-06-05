@@ -24,13 +24,13 @@ func NewSingleLineGrafanaAnnotator(grafanaURL, grafanaToken, dashboardUID string
 	}
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosCreated(chaos Chaos) {
+func (l SingleLineGrafanaAnnotator) OnChaosCreated(chaos K8sChaos) {
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosCreationFailed(chaos Chaos, reason error) {
+func (l SingleLineGrafanaAnnotator) OnChaosCreationFailed(chaos K8sChaos, reason error) {
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosStarted(chaos Chaos) {
+func (l SingleLineGrafanaAnnotator) OnChaosStarted(chaos K8sChaos) {
 	experiment, _ := chaos.GetExperimentStatus()
 	duration, _ := chaos.GetChaosDuration()
 
@@ -78,10 +78,10 @@ func (l SingleLineGrafanaAnnotator) OnChaosStarted(chaos Chaos) {
 	}
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosPaused(chaos Chaos) {
+func (l SingleLineGrafanaAnnotator) OnChaosPaused(chaos K8sChaos) {
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosEnded(chaos Chaos) {
+func (l SingleLineGrafanaAnnotator) OnChaosEnded(chaos K8sChaos) {
 	experiment, _ := chaos.GetExperimentStatus()
 	duration, _ := chaos.GetChaosDuration()
 
@@ -130,7 +130,7 @@ func (l SingleLineGrafanaAnnotator) OnChaosEnded(chaos Chaos) {
 	}
 }
 
-func (l SingleLineGrafanaAnnotator) OnChaosStatusUnknown(chaos Chaos) {
+func (l SingleLineGrafanaAnnotator) OnChaosStatusUnknown(chaos K8sChaos) {
 }
 
 func (l SingleLineGrafanaAnnotator) OnScheduleCreated(s Schedule) {

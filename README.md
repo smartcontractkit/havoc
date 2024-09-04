@@ -1,6 +1,6 @@
 ## Havoc
 
-*DISCLAIMER*: This software is not even early Alpha, and still in development, use it on your own risk
+*DISCLAIMER*: This repository is archived, there will be no new commits or support, all development is moved to https://github.com/smartcontractkit/chainlink-testing-framework
 
 Havoc is a tool that introspects your k8s namespace and generates a `ChaosMesh` CRDs suite for you
 
